@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helpers ─────────────────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMember(tid) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/tenants/$(tid)/usuarios/$(request.auth.uid));
+    }
+
+    function isAdmin(tid) {
+      return isMember(tid) &&
+        get(/databases/$(database)/documents/tenants/$(tid)/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    function inviteValid(tid, token) {
+      return signedIn() && token != null &&
+        exists(/databases/$(database)/documents/tenants/$(tid)/invitaciones/$(token));
+    }
+
+    // Perfil del usuario (entry point post-auth) ──────────────────────────────
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // Datos por tenant ────────────────────────────────────────────────────────
+    match /tenants/{tid}/rutas/{doc} {
+      allow read, write: if isMember(tid);
+    }
+    match /tenants/{tid}/clientes/{doc} {
+      allow read, write: if isMember(tid);
+    }
+    match /tenants/{tid}/prestamos/{doc} {
+      allow read, write: if isMember(tid);
+    }
+    match /tenants/{tid}/movimientos/{doc} {
+      allow read, write: if isMember(tid);
+    }
+
+    // Membresía: admin gestiona; cobrador self-create con invitación válida;
+    // dueño del tenant (uid == tid) puede self-bootstrap como admin.
+    match /tenants/{tid}/usuarios/{uid} {
+      allow read: if isMember(tid);
+      allow create: if (
+                      signedIn() && request.auth.uid == uid && (
+                        (tid == request.auth.uid && request.resource.data.rol == 'admin')
+                        || inviteValid(tid, request.resource.data.inviteToken)
+                      )
+                    ) || isAdmin(tid);
+      allow update: if isAdmin(tid);
+      allow delete: if isAdmin(tid) && uid != request.auth.uid;
+    }
+
+    // Invitaciones: admin escribe; cualquier auth puede leer/borrar
+    // (el token actúa como secreto compartido por el link de invitación).
+    match /tenants/{tid}/invitaciones/{token} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin(tid);
+      allow delete: if signedIn();
+    }
+  }
+}
