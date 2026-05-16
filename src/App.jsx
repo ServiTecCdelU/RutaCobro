@@ -1,13 +1,29 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import Layout from '@/components/layout/Layout';
-import Login from '@/pages/Login';
-import Dashboard from '@/pages/Dashboard';
-import Clientes from '@/pages/Clientes';
-import Rutas from '@/pages/Rutas';
-import Movimientos from '@/pages/Movimientos';
-import Equipo from '@/pages/Equipo';
-import AceptarInvitacion from '@/pages/AceptarInvitacion';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+const Login = lazy(() => import('@/pages/Login'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Clientes = lazy(() => import('@/pages/Clientes'));
+const Rutas = lazy(() => import('@/pages/Rutas'));
+const Movimientos = lazy(() => import('@/pages/Movimientos'));
+const Equipo = lazy(() => import('@/pages/Equipo'));
+const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'));
+const Configuracion = lazy(() => import('@/pages/Configuracion'));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-8 h-8 rounded-full border-2 border-slate-300 border-t-slate-900 animate-spin" />
+    </div>
+  );
+}
+
+function LazyPage({ children }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
 
 function ProtectedRoute({ children }) {
   const { user, userDoc } = useApp();
@@ -31,19 +47,94 @@ function AdminOnly({ children }) {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/aceptar" element={<AceptarInvitacion />} />
+      <Route
+        path="/login"
+        element={
+          <LazyPage>
+            <Login />
+          </LazyPage>
+        }
+      />
+      <Route
+        path="/aceptar"
+        element={
+          <LazyPage>
+            <AceptarInvitacion />
+          </LazyPage>
+        }
+      />
       <Route
         path="/*"
         element={
           <ProtectedRoute>
             <Layout>
               <Routes>
-                <Route index element={<Dashboard />} />
-                <Route path="clientes" element={<Clientes />} />
-                <Route path="rutas" element={<AdminOnly><Rutas /></AdminOnly>} />
-                <Route path="caja" element={<Movimientos />} />
-                <Route path="equipo" element={<AdminOnly><Equipo /></AdminOnly>} />
+                <Route
+                  index
+                  element={
+                    <ErrorBoundary>
+                      <LazyPage>
+                        <Dashboard />
+                      </LazyPage>
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="clientes"
+                  element={
+                    <ErrorBoundary>
+                      <LazyPage>
+                        <Clientes />
+                      </LazyPage>
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="rutas"
+                  element={
+                    <AdminOnly>
+                      <ErrorBoundary>
+                        <LazyPage>
+                          <Rutas />
+                        </LazyPage>
+                      </ErrorBoundary>
+                    </AdminOnly>
+                  }
+                />
+                <Route
+                  path="caja"
+                  element={
+                    <ErrorBoundary>
+                      <LazyPage>
+                        <Movimientos />
+                      </LazyPage>
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="equipo"
+                  element={
+                    <AdminOnly>
+                      <ErrorBoundary>
+                        <LazyPage>
+                          <Equipo />
+                        </LazyPage>
+                      </ErrorBoundary>
+                    </AdminOnly>
+                  }
+                />
+                <Route
+                  path="config"
+                  element={
+                    <AdminOnly>
+                      <ErrorBoundary>
+                        <LazyPage>
+                          <Configuracion />
+                        </LazyPage>
+                      </ErrorBoundary>
+                    </AdminOnly>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Layout>

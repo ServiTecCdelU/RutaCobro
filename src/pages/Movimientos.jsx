@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Receipt, TrendingUp, Users as UsersIcon, Calendar, Undo2, FileDown, FileText } from 'lucide-react';
+import {
+  Search,
+  Receipt,
+  TrendingUp,
+  Users as UsersIcon,
+  Calendar,
+  Undo2,
+  FileDown,
+  FileText,
+} from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney, formatFechaLarga, formatFecha } from '@/utils/formatters';
@@ -10,6 +19,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import MetricCard from '@/components/ui/MetricCard';
 import RutaSelector from '@/components/ui/RutaSelector';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { usePaginacion } from '@/hooks/usePaginacion';
+import Paginacion from '@/components/ui/Paginacion';
 
 export default function Movimientos() {
   const { user, clientes, rutas, prestamos, revertirCuota, error } = useApp();
@@ -29,41 +40,43 @@ export default function Movimientos() {
   useEffect(() => {
     if (!user) return;
     setLoadError(null);
-    const [desde, hasta] = fechaDesde <= fechaHasta
-      ? [fechaDesde, fechaHasta]
-      : [fechaHasta, fechaDesde];
-    const unsub = subscribeMovimientosPorRango(
-      user.uid,
-      desde,
-      hasta,
-      setMovimientos,
-      (err) => setLoadError(err.message ?? 'Error cargando movimientos'),
+    const [desde, hasta] =
+      fechaDesde <= fechaHasta ? [fechaDesde, fechaHasta] : [fechaHasta, fechaDesde];
+    const unsub = subscribeMovimientosPorRango(user.uid, desde, hasta, setMovimientos, (err) =>
+      setLoadError(err.message ?? 'Error cargando movimientos'),
     );
     return unsub;
   }, [user, fechaDesde, fechaHasta]);
 
-  const clientesMap = useMemo(() => new Map(clientes.map(c => [c.id, c])), [clientes]);
-  const rutasMap    = useMemo(() => new Map(rutas.map(r => [r.id, r])), [rutas]);
-  const prestamosMap = useMemo(() => new Map(prestamos.map(p => [p.id, p])), [prestamos]);
+  const clientesMap = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
+  const rutasMap = useMemo(() => new Map(rutas.map((r) => [r.id, r])), [rutas]);
+  const prestamosMap = useMemo(() => new Map(prestamos.map((p) => [p.id, p])), [prestamos]);
 
   const items = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
     return movimientos
-      .map(m => {
+      .map((m) => {
         const cliente = clientesMap.get(m.clienteId);
         const ruta = cliente ? rutasMap.get(cliente.rutaId) : null;
         return { ...m, cliente, ruta };
       })
-      .filter(m => rutaActiva === 'all' || m.cliente?.rutaId === rutaActiva)
-      .filter(m => !q || m.cliente?.nombre.toLowerCase().includes(q));
+      .filter((m) => rutaActiva === 'all' || m.cliente?.rutaId === rutaActiva)
+      .filter((m) => !q || m.cliente?.nombre.toLowerCase().includes(q));
   }, [movimientos, rutaActiva, busqueda, clientesMap, rutasMap]);
 
+  const pag = usePaginacion(items, 30);
+  const resetPag = pag.reset;
+
+  useEffect(() => {
+    resetPag();
+  }, [fechaDesde, fechaHasta, rutaActiva, busqueda, resetPag]);
+
   const totalPeriodo = items.reduce((s, m) => s + m.monto, 0);
-  const clientesDistintos = new Set(items.map(m => m.clienteId)).size;
+  const clientesDistintos = new Set(items.map((m) => m.clienteId)).size;
 
   const porRuta = useMemo(() => {
     const map = new Map();
-    items.forEach(m => {
+    items.forEach((m) => {
       const key = m.ruta?.id ?? '—';
       const acc = map.get(key) ?? { ruta: m.ruta, monto: 0, cobros: 0 };
       acc.monto += m.monto;
@@ -95,7 +108,7 @@ export default function Movimientos() {
       return;
     }
     const header = ['Fecha', 'Cliente', 'DNI', 'Ruta', 'Cuota', 'Monto'];
-    const rows = items.map(m => [
+    const rows = items.map((m) => [
       m.fecha,
       m.cliente?.nombre ?? '',
       m.cliente?.dni ?? '',
@@ -103,9 +116,12 @@ export default function Movimientos() {
       m.cuotaNro,
       m.monto,
     ]);
-    const csv = [header, ...rows]
-      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+    const sanitize = (v) => {
+      let s = String(v).replace(/"/g, '""');
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return `"${s}"`;
+    };
+    const csv = [header, ...rows].map((r) => r.map(sanitize).join(',')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -137,12 +153,16 @@ export default function Movimientos() {
         ? `Período: ${formatFecha(fechaDesde)} a ${formatFecha(fechaHasta)}`
         : `Fecha: ${formatFechaLarga(fechaDesde)}`;
       doc.text(subtitulo, 14, 25);
-      doc.text(`Cobros: ${items.length} · Total: ${formatMoney(totalPeriodo)} · Clientes: ${clientesDistintos}`, 14, 31);
+      doc.text(
+        `Cobros: ${items.length} · Total: ${formatMoney(totalPeriodo)} · Clientes: ${clientesDistintos}`,
+        14,
+        31,
+      );
 
       autoTable(doc, {
         startY: 38,
         head: [['Fecha', 'Cliente', 'DNI', 'Ruta', 'Cuota', 'Monto']],
-        body: items.map(m => [
+        body: items.map((m) => [
           formatFecha(m.fecha),
           m.cliente?.nombre ?? '—',
           m.cliente?.dni ?? '',
@@ -191,7 +211,7 @@ export default function Movimientos() {
           <input
             type="date"
             value={fechaDesde}
-            onChange={e => setFechaDesde(e.target.value)}
+            onChange={(e) => setFechaDesde(e.target.value)}
             max={hoy()}
             className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
             aria-label="Desde"
@@ -200,7 +220,7 @@ export default function Movimientos() {
           <input
             type="date"
             value={fechaHasta}
-            onChange={e => setFechaHasta(e.target.value)}
+            onChange={(e) => setFechaHasta(e.target.value)}
             max={hoy()}
             className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-medium focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
             aria-label="Hasta"
@@ -222,7 +242,8 @@ export default function Movimientos() {
             disabled={exportandoPDF}
             className="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 transition-colors inline-flex items-center gap-2 disabled:opacity-50"
           >
-            <FileText size={15} /> <span className="hidden sm:inline">{exportandoPDF ? 'Generando…' : 'PDF'}</span>
+            <FileText size={15} />{' '}
+            <span className="hidden sm:inline">{exportandoPDF ? 'Generando…' : 'PDF'}</span>
           </button>
         </div>
       </div>
@@ -244,7 +265,9 @@ export default function Movimientos() {
         />
         <MetricCard
           label="Promedio"
-          value={items.length > 0 ? formatMoney(Math.round(totalPeriodo / items.length)) : formatMoney(0)}
+          value={
+            items.length > 0 ? formatMoney(Math.round(totalPeriodo / items.length)) : formatMoney(0)
+          }
           icon={Calendar}
           accent="#8b5cf6"
           sublabel="Por cobro"
@@ -257,10 +280,17 @@ export default function Movimientos() {
           <div className="space-y-2">
             {porRuta.map(({ ruta, monto, cobros }) => (
               <div key={ruta?.id ?? '—'} className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: ruta?.color ?? '#94a3b8' }} />
-                <span className="flex-1 text-sm font-semibold text-slate-700">{ruta?.nombre ?? 'Sin ruta'}</span>
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: ruta?.color ?? '#94a3b8' }}
+                />
+                <span className="flex-1 text-sm font-semibold text-slate-700">
+                  {ruta?.nombre ?? 'Sin ruta'}
+                </span>
                 <span className="text-xs text-slate-500 tabular-nums">{cobros} cobros</span>
-                <span className="text-sm font-bold text-slate-900 w-28 text-right tabular-nums">{formatMoney(monto)}</span>
+                <span className="text-sm font-bold text-slate-900 w-28 text-right tabular-nums">
+                  {formatMoney(monto)}
+                </span>
               </div>
             ))}
           </div>
@@ -274,7 +304,7 @@ export default function Movimientos() {
             type="text"
             placeholder="Buscar cliente…"
             value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
+            onChange={(e) => setBusqueda(e.target.value)}
             className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
           />
         </div>
@@ -292,51 +322,74 @@ export default function Movimientos() {
             esRango
               ? 'No hubo cobros en el período seleccionado.'
               : fechaDesde === hoy()
-              ? 'Hoy todavía no hay movimientos.'
-              : 'No hubo cobros en esa fecha.'
+                ? 'Hoy todavía no hay movimientos.'
+                : 'No hubo cobros en esa fecha.'
           }
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200/70 divide-y divide-slate-100 shadow-card overflow-hidden">
-          {items.map(m => {
-            const prestamo = prestamosMap.get(m.prestamoId);
-            return (
-              <div key={m.id} className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+        <>
+          <div className="bg-white rounded-2xl border border-slate-200/70 divide-y divide-slate-100 shadow-card overflow-hidden">
+            {pag.items.map((m) => {
+              const prestamo = prestamosMap.get(m.prestamoId);
+              return (
                 <div
-                  className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm"
-                  style={{ background: m.ruta?.color ?? '#64748b' }}
+                  key={m.id}
+                  className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors"
                 >
-                  {m.cliente?.nombre.split(' ').map(n => n[0]).slice(0, 2).join('') ?? '?'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-slate-900 text-sm truncate flex items-center gap-2">
-                    <span className="truncate">{m.cliente?.nombre ?? 'Cliente eliminado'}</span>
-                    {m.tipo === 'pago-monto' && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">
-                        Parcial
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-500 tabular-nums">
-                    Cuota {m.cuotaNro}{prestamo ? `/${prestamo.cuotas}` : ''} · {m.ruta?.nombre ?? 'Sin ruta'} · {formatFecha(m.fecha)}
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="font-bold text-slate-900 text-sm tabular-nums">{formatMoney(m.monto)}</div>
-                </div>
-                {prestamo && (
-                  <button
-                    onClick={() => setConfirmRevertir(m)}
-                    className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 flex items-center justify-center transition-colors"
-                    title="Revertir cobro"
+                  <div
+                    className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm"
+                    style={{ background: m.ruta?.color ?? '#64748b' }}
                   >
-                    <Undo2 size={14} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                    {m.cliente?.nombre
+                      .split(' ')
+                      .map((n) => n[0])
+                      .slice(0, 2)
+                      .join('') ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-slate-900 text-sm truncate flex items-center gap-2">
+                      <span className="truncate">{m.cliente?.nombre ?? 'Cliente eliminado'}</span>
+                      {m.tipo === 'pago-monto' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">
+                          Parcial
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 tabular-nums">
+                      Cuota {m.cuotaNro}
+                      {prestamo ? `/${prestamo.cuotas}` : ''} · {m.ruta?.nombre ?? 'Sin ruta'} ·{' '}
+                      {formatFecha(m.fecha)}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-bold text-slate-900 text-sm tabular-nums">
+                      {formatMoney(m.monto)}
+                    </div>
+                  </div>
+                  {prestamo && (
+                    <button
+                      onClick={() => setConfirmRevertir(m)}
+                      className="flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 flex items-center justify-center transition-colors"
+                      title="Revertir cobro"
+                      aria-label="Revertir cobro"
+                    >
+                      <Undo2 size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <Paginacion
+            pagina={pag.pagina}
+            totalPaginas={pag.totalPaginas}
+            total={pag.total}
+            hayAnterior={pag.hayAnterior}
+            haySiguiente={pag.haySiguiente}
+            anterior={pag.anterior}
+            siguiente={pag.siguiente}
+          />
+        </>
       )}
 
       {confirmRevertir && (

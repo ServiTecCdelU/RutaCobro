@@ -25,6 +25,11 @@ export const diasDeAtraso = (cuota) => {
 };
 
 export const generarCuotas = (monto, interes, cantCuotas, fechaInicio, frecuenciaDias = 7) => {
+  if (monto <= 0) throw new Error('El monto debe ser mayor a 0');
+  if (interes < 0) throw new Error('El interés no puede ser negativo');
+  if (cantCuotas < 1 || cantCuotas > 520)
+    throw new Error('La cantidad de cuotas debe estar entre 1 y 520');
+  if (frecuenciaDias < 1) throw new Error('La frecuencia debe ser al menos 1 día');
   const total = Math.round(monto * (1 + interes / 100));
   const valorCuota = Math.round(total / cantCuotas);
   const ultima = total - valorCuota * (cantCuotas - 1);
@@ -38,4 +43,4 @@ export const generarCuotas = (monto, interes, cantCuotas, fechaInicio, frecuenci
 };
 
 export const proximaCuotaPendiente = (prestamo) =>
-  prestamo?.cuotasDetalle?.find(c => !c.pagada) ?? null;
+  prestamo?.cuotasDetalle?.find((c) => !c.pagada) ?? null;

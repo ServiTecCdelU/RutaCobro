@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { formatMoney } from '@/utils/formatters';
 
-export default function RutaPerformance({ porRuta }) {
-  const maxCobrado = Math.max(...porRuta.map(r => r.cobrado), 1);
+export default memo(function RutaPerformance({ porRuta }) {
+  const maxCobrado = Math.max(...porRuta.map((r) => r.cobrado), 1);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card">
@@ -10,15 +11,20 @@ export default function RutaPerformance({ porRuta }) {
         <p className="text-xs text-slate-500">Cobrado total acumulado</p>
       </div>
       <div className="space-y-4">
-        {porRuta.map(r => (
+        {porRuta.map((r) => (
           <div key={r.id}>
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-1" style={{ background: r.color, '--tw-ring-color': `${r.color}33` }} />
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-1"
+                  style={{ background: r.color, '--tw-ring-color': `${r.color}33` }}
+                />
                 <span className="text-sm font-semibold text-slate-700 truncate">{r.nombre}</span>
                 <span className="text-xs text-slate-400 truncate">{r.cobrador}</span>
               </div>
-              <span className="text-sm font-bold text-slate-900 tabular-nums flex-shrink-0">{formatMoney(r.cobrado)}</span>
+              <span className="text-sm font-bold text-slate-900 tabular-nums flex-shrink-0">
+                {formatMoney(r.cobrado)}
+              </span>
             </div>
             <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
@@ -40,4 +46,4 @@ export default function RutaPerformance({ porRuta }) {
       </div>
     </div>
   );
-}
+});

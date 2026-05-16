@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { formatMoney } from '@/utils/formatters';
 
 const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-export default function BarChart({ data }) {
+export default memo(function BarChart({ data }) {
   const max = Math.max(...data, 1);
 
   const labels = Array.from({ length: 7 }, (_, i) => {
@@ -15,9 +16,7 @@ export default function BarChart({ data }) {
   const total = data.reduce((s, v) => s + v, 0);
   const mitadAnterior = data.slice(0, 3).reduce((s, v) => s + v, 0);
   const mitadActual = data.slice(4).reduce((s, v) => s + v, 0);
-  const cambio = mitadAnterior > 0
-    ? ((mitadActual - mitadAnterior) / mitadAnterior) * 100
-    : null;
+  const cambio = mitadAnterior > 0 ? ((mitadActual - mitadAnterior) / mitadAnterior) * 100 : null;
   const positivo = cambio !== null && cambio >= 0;
 
   return (
@@ -28,11 +27,14 @@ export default function BarChart({ data }) {
           <p className="text-xs text-slate-500 tabular-nums">{formatMoney(total)} en 7 días</p>
         </div>
         {cambio !== null && (
-          <div className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg ${
-            positivo ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
-          }`}>
+          <div
+            className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg ${
+              positivo ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
+            }`}
+          >
             {positivo ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-            {positivo ? '+' : ''}{cambio.toFixed(1)}%
+            {positivo ? '+' : ''}
+            {cambio.toFixed(1)}%
           </div>
         )}
       </div>
@@ -59,7 +61,9 @@ export default function BarChart({ data }) {
                   </div>
                 )}
               </div>
-              <span className={`text-[10px] font-semibold ${esHoy ? 'text-brand-700' : 'text-slate-400'}`}>
+              <span
+                className={`text-[10px] font-semibold ${esHoy ? 'text-brand-700' : 'text-slate-400'}`}
+              >
                 {label}
               </span>
             </div>
@@ -68,4 +72,4 @@ export default function BarChart({ data }) {
       </div>
     </div>
   );
-}
+});

@@ -4,11 +4,12 @@ import { diasDeAtraso, hoy, toFechaStr } from '@/utils/calculos';
 export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
   return useMemo(() => {
     const hoyStr = hoy();
-    const clientesPorId = new Map(clientes.map(c => [c.id, c]));
+    const clientesPorId = new Map(clientes.map((c) => [c.id, c]));
 
-    const prestamosFiltrados = rutaActiva === 'all'
-      ? prestamos
-      : prestamos.filter(p => clientesPorId.get(p.clienteId)?.rutaId === rutaActiva);
+    const prestamosFiltrados =
+      rutaActiva === 'all'
+        ? prestamos
+        : prestamos.filter((p) => clientesPorId.get(p.clienteId)?.rutaId === rutaActiva);
 
     let cobradoTotal = 0;
     let porCobrar = 0;
@@ -44,7 +45,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     const tasaMora = cuotasTotales > 0 ? (cuotasMoraCant / cuotasTotales) * 100 : 0;
 
     // Rendimiento por ruta (siempre sobre todos los préstamos)
-    const porRuta = rutas.map(r => {
+    const porRuta = rutas.map((r) => {
       let cobrado = 0;
       let total = 0;
       for (const p of prestamos) {
@@ -76,11 +77,66 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     }
     const evolucion = [...evolucionPorDia.values()];
 
+    // Ganancia estimada (interés)
+    let gananciaEstimada = 0;
+    for (const p of prestamosFiltrados) {
+      const totalCuotas = (p.cuotasDetalle ?? []).reduce((s, c) => s + c.monto, 0);
+      gananciaEstimada += totalCuotas - (p.monto ?? 0);
+    }
+
+    // Clientes activos (con al menos un préstamo activo)
+    const clientesConPrestamo = new Set();
+    for (const p of prestamosFiltrados) {
+      if (p.estado === 'activo' || p.estado === 'mora') {
+        clientesConPrestamo.add(p.clienteId);
+      }
+    }
+    const clientesActivos = clientesConPrestamo.size;
+
+    // Préstamos por estado
+    let prestamosActivos = 0;
+    let prestamosFinalizados = 0;
+    let prestamosMora = 0;
+    for (const p of prestamosFiltrados) {
+      if (p.estado === 'finalizado') prestamosFinalizados++;
+      else if (p.estado === 'mora') prestamosMora++;
+      else prestamosActivos++;
+    }
+
+    // Evolución mora últimos 7 días
+    const moraPorDia = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(hoyDate);
+      d.setDate(d.getDate() - (6 - i));
+      const dStr = toFechaStr(d);
+      let moraDelDia = 0;
+      for (const p of prestamosFiltrados) {
+        for (const c of p.cuotasDetalle ?? []) {
+          if (!c.pagada && c.vencimiento <= dStr) {
+            moraDelDia += c.monto - (c.pagado ?? 0);
+          }
+        }
+      }
+      moraPorDia.push(moraDelDia);
+    }
+
     return {
-      cobradoTotal, porCobrar, colocado,
-      montoMora, tasaMora, cuotasHoyCant,
-      aCobrarHoy, porRuta, evolucion,
+      cobradoTotal,
+      porCobrar,
+      colocado,
+      montoMora,
+      tasaMora,
+      cuotasHoyCant,
+      aCobrarHoy,
+      porRuta,
+      evolucion,
       enMoraCant: cuotasMoraCant,
+      gananciaEstimada,
+      clientesActivos,
+      prestamosActivos,
+      prestamosFinalizados,
+      prestamosMora,
+      moraPorDia,
     };
   }, [prestamos, clientes, rutas, rutaActiva]);
 }

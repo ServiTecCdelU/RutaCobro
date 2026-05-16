@@ -16,7 +16,7 @@ export default function Layout({ children }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[360px] opacity-60"
         style={{
@@ -27,8 +27,10 @@ export default function Layout({ children }) {
       <Header onNuevoPrestamo={() => setModalNuevo(true)} />
       {syncing && (
         <div className="fixed top-16 inset-x-0 h-0.5 bg-slate-200 overflow-hidden z-30">
-          <div className="h-full bg-brand-gradient animate-[slide_1.2s_ease-in-out_infinite]"
-               style={{ width: '40%' }} />
+          <div
+            className="h-full bg-brand-gradient animate-[slide_1.2s_ease-in-out_infinite]"
+            style={{ width: '40%' }}
+          />
         </div>
       )}
 
@@ -37,7 +39,7 @@ export default function Layout({ children }) {
       </main>
 
       {/* Bottom nav — solo mobile */}
-      <nav className="md:hidden fixed bottom-3 inset-x-3 bg-white/95 backdrop-blur-xl border border-slate-200/70 shadow-popover rounded-2xl z-40 flex p-1.5">
+      <nav className="md:hidden fixed bottom-3 inset-x-3 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl border border-slate-200/70 dark:border-slate-700/70 shadow-popover rounded-2xl z-40 flex p-1.5">
         {tabs.map(({ to, icon: Icon, label, end }) => (
           <NavLink
             key={to}
@@ -46,8 +48,8 @@ export default function Layout({ children }) {
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-semibold transition-all ${
                 isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-slate-400 hover:text-slate-600'
+                  ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300'
               }`
             }
           >

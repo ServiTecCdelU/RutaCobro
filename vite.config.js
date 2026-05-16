@@ -54,4 +54,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': '/src' },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+  },
 });
