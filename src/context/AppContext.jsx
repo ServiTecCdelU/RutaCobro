@@ -19,9 +19,11 @@ import {
   crearInvitacion,
   eliminarInvitacion,
   eliminarMiembro,
+  actualizarMiembro,
   subscribeNotas,
   crearNota,
   eliminarNota,
+  actualizarCapitalTotal,
 } from '@/firebase/services';
 
 const AppContext = createContext(null);
@@ -51,6 +53,8 @@ function AppInner({ children }) {
       crearInvitacion: (d) => crearInvitacion(tenantId, d),
       eliminarInvitacion: (token) => eliminarInvitacion(tenantId, token),
       eliminarMiembro: (uid) => eliminarMiembro(tenantId, uid),
+      actualizarMiembro: (uid, d) => actualizarMiembro(tenantId, uid, d),
+      actualizarCapitalTotal: (monto) => actualizarCapitalTotal(tenantId, monto),
       subscribeNotas: (clienteId, cb, onErr) => subscribeNotas(tenantId, clienteId, cb, onErr),
       crearNota: (d) => crearNota(tenantId, d),
       eliminarNota: (id) => eliminarNota(tenantId, id),

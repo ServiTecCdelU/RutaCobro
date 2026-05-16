@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/firebase/config';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config';
 import { getUserDoc, bootstrapAdmin } from '@/firebase/services';
 
 const AuthContext = createContext(null);
@@ -8,26 +9,37 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined);
   const [userDoc, setUserDoc] = useState(undefined);
+  const [memberDoc, setMemberDoc] = useState(null);
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => setUser(u ?? null));
   }, []);
 
+  // Leer /users/{uid} para obtener tenantId y rol base
   useEffect(() => {
     if (!user) {
       setUserDoc(null);
+      setMemberDoc(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        let doc = await getUserDoc(user.uid);
-        if (!doc) {
+        let udoc = await getUserDoc(user.uid);
+        if (!udoc) {
+          const params = new URLSearchParams(window.location.search);
+          const isInviteFlow =
+            window.location.pathname.includes('/aceptar') ||
+            (params.get('next') && params.get('next').includes('/aceptar'));
+          if (isInviteFlow) {
+            if (!cancelled) setUserDoc(null);
+            return;
+          }
           await bootstrapAdmin(user.uid, user.email ?? '');
-          doc = { id: user.uid, tenantId: user.uid, rol: 'admin', email: user.email ?? '' };
+          udoc = { id: user.uid, tenantId: user.uid, rol: 'admin', email: user.email ?? '' };
         }
-        if (!cancelled) setUserDoc(doc);
+        if (!cancelled) setUserDoc(udoc);
       } catch (err) {
         if (!cancelled) {
           setAuthError(`No se pudo cargar tu perfil: ${err.message}`);
@@ -40,21 +52,46 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
+  // Listener en tiempo real del doc de miembro para obtener rutaId y montoAsignado actualizados
+  useEffect(() => {
+    const tenantId = userDoc?.tenantId;
+    const uid = user?.uid;
+    if (!tenantId || !uid) {
+      setMemberDoc(null);
+      return;
+    }
+    const memberRef = doc(db, `tenants/${tenantId}/usuarios/${uid}`);
+    return onSnapshot(
+      memberRef,
+      (snap) => {
+        setMemberDoc(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      },
+      () => setMemberDoc(null),
+    );
+  }, [userDoc?.tenantId, user?.uid]);
+
+  // Mergear: memberDoc tiene la info más actualizada (el admin lo edita ahí)
   const tenantId = userDoc?.tenantId;
-  const rol = userDoc?.rol;
-  const rutaIdAsignada = userDoc?.rutaId ?? null;
-  const clienteIdAsignado = userDoc?.clienteId ?? null;
+  const rol = memberDoc?.rol ?? userDoc?.rol;
+  const rutaIdAsignada = memberDoc?.rutaId ?? userDoc?.rutaId ?? null;
+  const montoAsignado = memberDoc?.montoAsignado ?? userDoc?.montoAsignado ?? null;
+  const clienteIdAsignado = memberDoc?.clienteId ?? userDoc?.clienteId ?? null;
   const esAdmin = rol === 'admin';
   const esCobrador = rol === 'cobrador';
   const esVisitante = rol === 'visitante';
   const esCliente = rol === 'cliente';
   const puedeEditar = esAdmin || esCobrador;
 
+  // Combinar userDoc con datos frescos del memberDoc
+  const mergedUserDoc = userDoc
+    ? { ...userDoc, rutaId: rutaIdAsignada, montoAsignado, rol }
+    : userDoc;
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        userDoc,
+        userDoc: mergedUserDoc,
         tenantId,
         rol,
         rutaIdAsignada,

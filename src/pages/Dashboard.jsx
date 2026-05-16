@@ -7,6 +7,7 @@ import {
   Users,
   PiggyBank,
   FileCheck,
+  Landmark,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useMetricas } from '@/hooks/useMetricas';
@@ -22,7 +23,8 @@ import { formatMoney, formatFechaLarga } from '@/utils/formatters';
 import { hoy } from '@/utils/calculos';
 
 export default function Dashboard() {
-  const { rutas, clientes, prestamos, error, syncing } = useApp();
+  const { rutas, clientes, prestamos, tenantConfig, esCobrador, userDoc, error, syncing } =
+    useApp();
   const [rutaActiva, setRutaActiva] = useState('all');
   const m = useMetricas(prestamos, clientes, rutas, rutaActiva);
 
@@ -47,6 +49,69 @@ export default function Dashboard() {
           <RutaSelector rutas={rutas} rutaActiva={rutaActiva} onSelect={setRutaActiva} />
         )}
       </div>
+
+      {/* Capital del cobrador */}
+      {esCobrador &&
+        userDoc?.montoAsignado > 0 &&
+        (() => {
+          const miRuta = rutas[0];
+          const capitalEnCalle = prestamos
+            .filter((p) => p.estado === 'activo')
+            .reduce((sum, p) => sum + (p.monto ?? 0), 0);
+          const disponible = userDoc.montoAsignado - capitalEnCalle;
+          return (
+            <div className="grid grid-cols-3 gap-3">
+              <MetricCard
+                label="Mi capital"
+                value={formatMoney(userDoc.montoAsignado)}
+                icon={Landmark}
+                accent="#0f172a"
+                sublabel={miRuta ? `Ruta: ${miRuta.nombre}` : 'Sin ruta'}
+              />
+              <MetricCard
+                label="En calle"
+                value={formatMoney(capitalEnCalle)}
+                icon={Wallet}
+                accent="#8b5cf6"
+                sublabel={`${prestamos.filter((p) => p.estado === 'activo').length} préstamos`}
+              />
+              <MetricCard
+                label="Disponible"
+                value={formatMoney(disponible)}
+                icon={PiggyBank}
+                accent={disponible < 0 ? '#ef4444' : '#10b981'}
+                sublabel="Para prestar"
+              />
+            </div>
+          );
+        })()}
+
+      {/* Capital general */}
+      {!esCobrador && tenantConfig?.capitalTotal > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <MetricCard
+            label="Capital inicial"
+            value={formatMoney(tenantConfig.capitalTotal)}
+            icon={Landmark}
+            accent="#0f172a"
+            sublabel="Fondo total invertido"
+          />
+          <MetricCard
+            label="En calle"
+            value={formatMoney(m.colocado)}
+            icon={Wallet}
+            accent="#8b5cf6"
+            sublabel={`${m.prestamosActivos} préstamos activos`}
+          />
+          <MetricCard
+            label="Disponible"
+            value={formatMoney(tenantConfig.capitalTotal - m.colocado)}
+            icon={PiggyBank}
+            accent="#10b981"
+            sublabel="Para nuevos préstamos"
+          />
+        </div>
+      )}
 
       {/* Métricas principales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

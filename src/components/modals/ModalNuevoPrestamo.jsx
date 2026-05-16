@@ -7,7 +7,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useModal } from '@/hooks/useModal';
 
 export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
-  const { clientes, rutas, crearPrestamo } = useApp();
+  const { clientes, rutas, prestamos, crearPrestamo, esCobrador, rutaIdAsignada, userDoc } =
+    useApp();
   const toast = useToast();
   const [clienteId, setClienteId] = useState(clienteIdInicial ?? '');
   const [monto, setMonto] = useState(100000);
@@ -28,6 +29,14 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
   const valorCuota = Math.round(totalConInteres / cuotas);
   const ganancia = totalConInteres - monto;
 
+  // Monto disponible del cobrador
+  const montoAsignado = userDoc?.montoAsignado ?? null;
+  const capitalEnCalle =
+    esCobrador && rutaIdAsignada
+      ? prestamos.filter((p) => p.estado === 'activo').reduce((sum, p) => sum + (p.monto ?? 0), 0)
+      : 0;
+  const montoDisponible = montoAsignado != null ? montoAsignado - capitalEnCalle : null;
+
   const handleCrear = async () => {
     setError('');
     if (!clienteId) {
@@ -40,6 +49,10 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
     }
     if (monto > 100_000_000) {
       setError('El capital no puede superar $100.000.000');
+      return;
+    }
+    if (esCobrador && montoDisponible != null && monto > montoDisponible) {
+      setError(`Excede tu monto disponible (${formatMoney(montoDisponible)})`);
       return;
     }
     if (interes < 0) {
@@ -222,6 +235,17 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
                 <span>52</span>
               </div>
             </div>
+
+            {esCobrador && montoDisponible != null && (
+              <div className="px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm">
+                <span className="text-slate-500">Disponible para prestar: </span>
+                <span
+                  className={`font-bold tabular-nums ${montoDisponible < monto ? 'text-rose-600' : 'text-emerald-600'}`}
+                >
+                  {formatMoney(montoDisponible)}
+                </span>
+              </div>
+            )}
 
             <div className="relative overflow-hidden bg-brand-gradient rounded-2xl p-4 text-white shadow-brand-sm">
               <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none" />

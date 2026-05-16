@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { subscribeRutas, subscribeClientes, subscribePrestamos } from '@/firebase/services';
+import {
+  subscribeRutas,
+  subscribeClientes,
+  subscribePrestamos,
+  subscribeTenantConfig,
+} from '@/firebase/services';
 import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
@@ -10,6 +15,7 @@ export function DataProvider({ children }) {
   const [rutas, setRutas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [prestamos, setPrestamos] = useState([]);
+  const [tenantConfig, setTenantConfig] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [dataError, setDataError] = useState(null);
 
@@ -45,6 +51,15 @@ export function DataProvider({ children }) {
     };
 
     const unsubs = [
+      subscribeTenantConfig(
+        tenantId,
+        (cfg) => {
+          if (!cancelled) setTenantConfig(cfg);
+        },
+        (err) => {
+          if (err.code !== 'permission-denied') handleError(err);
+        },
+      ),
       subscribeRutas(
         tenantId,
         (d) => {
@@ -116,7 +131,9 @@ export function DataProvider({ children }) {
         rutas: rutasVisibles,
         clientes: clientesVisibles,
         prestamos: prestamosVisibles,
+        prestamosAll: prestamos,
         rutasAll: rutas,
+        tenantConfig,
         syncing,
         dataError,
       }}

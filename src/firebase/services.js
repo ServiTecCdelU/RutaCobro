@@ -20,6 +20,7 @@ import { hoy } from '@/utils/calculos';
 
 const col = (tenantId, name) => collection(db, `tenants/${tenantId}/${name}`);
 const ref = (tenantId, name, id) => doc(db, `tenants/${tenantId}/${name}`, id);
+const tenantRef = (tid) => doc(db, 'tenants', tid);
 const userRef = (uid) => doc(db, 'users', uid);
 const inviteRef = (tid, token) => doc(db, `tenants/${tid}/invitaciones`, token);
 const memberRef = (tid, uid) => doc(db, `tenants/${tid}/usuarios`, uid);
@@ -41,6 +42,21 @@ const listen = (q, cb, onError) =>
       onError?.(err);
     },
   );
+
+// ── Tenant config ────────────────────────────────────────────────────────────
+
+export const subscribeTenantConfig = (tenantId, cb, onError) =>
+  onSnapshot(
+    tenantRef(tenantId),
+    (snap) => cb(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+    (err) => {
+      console.error('[firestore]', err);
+      onError?.(err);
+    },
+  );
+
+export const actualizarCapitalTotal = (tenantId, capitalTotal) =>
+  setDoc(tenantRef(tenantId), { capitalTotal }, { merge: true });
 
 // ── Listeners en tiempo real ──────────────────────────────────────────────────
 
@@ -153,7 +169,7 @@ export const cobrarCuota = async (tenantId, prestamoId, nroCuota) => {
       cuotaNro: nroCuota,
       monto: faltaPagar,
       fecha: hoyStr,
-      tipo: 'cobro-cuota',
+      tipo: 'cuota',
       creadoEn: serverTimestamp(),
     });
 
@@ -264,7 +280,10 @@ export const subscribeMiembros = (tenantId, cb, onError) =>
 export const subscribeInvitaciones = (tenantId, cb, onError) =>
   listen(col(tenantId, 'invitaciones'), cb, onError);
 
-export const crearInvitacion = async (tenantId, { email, rutaId, rol = 'cobrador' }) => {
+export const crearInvitacion = async (
+  tenantId,
+  { email, rutaId, rol = 'cobrador', montoAsignado = null },
+) => {
   const validRoles = ['cobrador', 'visitante', 'cliente'];
   if (!validRoles.includes(rol)) throw new Error(`Rol inválido: ${rol}`);
   const token = randomToken();
@@ -272,6 +291,7 @@ export const crearInvitacion = async (tenantId, { email, rutaId, rol = 'cobrador
     email: email?.trim().toLowerCase() ?? '',
     rol,
     rutaId: rutaId ?? null,
+    montoAsignado: rol === 'cobrador' ? (montoAsignado ?? 0) : null,
     creadoEn: serverTimestamp(),
   });
   return token;
@@ -288,6 +308,7 @@ export const aceptarInvitacion = async (uid, email, tenantId, token) => {
   batch.set(memberRef(tenantId, uid), {
     rol: inv.rol,
     rutaId: inv.rutaId ?? null,
+    montoAsignado: inv.montoAsignado ?? null,
     email,
     inviteToken: token,
     creadoEn: serverTimestamp(),
@@ -295,13 +316,20 @@ export const aceptarInvitacion = async (uid, email, tenantId, token) => {
   batch.set(userRef(uid), {
     tenantId,
     rol: inv.rol,
+    rutaId: inv.rutaId ?? null,
+    montoAsignado: inv.montoAsignado ?? null,
     email,
     creadoEn: serverTimestamp(),
   });
   batch.delete(inviteRef(tenantId, token));
   await batch.commit();
 
-  return { tenantId, rol: inv.rol, rutaId: inv.rutaId ?? null };
+  return {
+    tenantId,
+    rol: inv.rol,
+    rutaId: inv.rutaId ?? null,
+    montoAsignado: inv.montoAsignado ?? null,
+  };
 };
 
 export const eliminarMiembro = (tenantId, uid) => deleteDoc(memberRef(tenantId, uid));

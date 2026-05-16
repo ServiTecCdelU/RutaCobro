@@ -54,12 +54,6 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/tenants/$(tid)/invitaciones/$(token));
     }
 
-    // Roles validos
-    // admin     — dueño del tenant, acceso total
-    // cobrador  — miembro del equipo, acceso a su ruta
-    // visitante — solo lectura, ve todo pero no puede modificar nada
-    // cliente   — ve solo sus propios prestamos y cuotas
-
     // ── Perfil del usuario ───────────────────────────────────────────────
 
     match /users/{uid} {
@@ -72,7 +66,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ── Tenant config (capitalTotal) ───────────────────────────────────────
+    // ── Tenant config (capitalTotal) ───────────────────────────────────
 
     match /tenants/{tid} {
       allow read:  if isMember(tid);
@@ -139,7 +133,7 @@ service cloud.firestore {
     match /tenants/{tid}/invitaciones/{token} {
       allow read:   if isMember(tid) || inviteValid(tid, token);
       allow create: if isAdmin(tid)
-                    && request.resource.data.keys().hasAll(['email', 'rol', 'rutaId', 'creadoEn'])
+                    && request.resource.data.keys().hasAll(['email', 'rol', 'rutaId', 'creadoEn', 'montoAsignado'])
                     && request.resource.data.rol in ['cobrador', 'visitante', 'cliente'];
       allow update: if isAdmin(tid);
       allow delete: if isAdmin(tid) || (signedIn() && inviteValid(tid, token));
