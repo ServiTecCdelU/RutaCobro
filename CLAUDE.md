@@ -144,4 +144,4 @@ Husky + lint-staged: al hacer commit se ejecuta ESLint (--fix) y Prettier sobre 
 
 ## Exportaciones
 - `Movimientos` exporta CSV (nativo Blob) y PDF vía `jspdf` + `jspdf-autotable` (import dinámico, se carga solo al usar).
-- `subscribeMovimientosPorRango(uid, desde, hasta, cb, onError)` — listener con rango de fechas, fuera del contexto global.
+- `subscribeMovimientosPorRango(desde, hasta, cb, onError)` — listener con rango de fechas, fuera del contexto global.

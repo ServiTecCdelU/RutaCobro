@@ -1,12 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function useModal(onClose) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', onKey);
 
@@ -14,5 +17,5 @@ export function useModal(onClose) {
       document.body.style.overflow = prev;
       document.removeEventListener('keydown', onKey);
     };
-  }, [onClose]);
+  }, []);
 }

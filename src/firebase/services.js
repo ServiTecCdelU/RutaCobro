@@ -87,7 +87,15 @@ export const crearRuta = (data) => addDoc(col('rutas'), { ...data, creadoEn: ser
 
 export const actualizarRuta = (id, data) => updateDoc(ref('rutas', id), data);
 
-export const eliminarRuta = (id) => deleteDoc(ref('rutas', id));
+export const eliminarRuta = async (id) => {
+  const clientesSnap = await getDocs(query(col('clientes'), where('rutaId', '==', id)));
+  if (!clientesSnap.empty) {
+    throw new Error(
+      `No se puede eliminar: hay ${clientesSnap.size} cliente(s) asignados a esta ruta. Reasignalos primero.`,
+    );
+  }
+  await deleteDoc(ref('rutas', id));
+};
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
 

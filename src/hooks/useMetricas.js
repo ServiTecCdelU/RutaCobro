@@ -71,7 +71,8 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     for (const p of prestamos) {
       for (const c of p.cuotasDetalle ?? []) {
         if (c.pagada && evolucionPorDia.has(c.fechaPago)) {
-          evolucionPorDia.set(c.fechaPago, evolucionPorDia.get(c.fechaPago) + c.monto);
+          const pagado = c.pagado ?? c.monto;
+          evolucionPorDia.set(c.fechaPago, evolucionPorDia.get(c.fechaPago) + pagado);
         }
       }
     }

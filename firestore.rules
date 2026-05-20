@@ -102,9 +102,16 @@ service cloud.firestore {
 
     // ── Prestamos ────────────────────────────────────────────────────────
 
+    function clienteBelongsToMyRuta(clienteId) {
+      return get(/databases/$(database)/documents/clientes/$(clienteId)).data.rutaId == myRutaId();
+    }
+
     match /prestamos/{doc} {
       allow read:           if isMember();
-      allow create, update: if canWrite();
+      allow create:         if isAdmin()
+                            || (isCobrador() && clienteBelongsToMyRuta(request.resource.data.clienteId));
+      allow update:         if isAdmin()
+                            || (isCobrador() && clienteBelongsToMyRuta(resource.data.clienteId));
       allow delete:         if isAdmin();
     }
 
@@ -112,7 +119,7 @@ service cloud.firestore {
 
     match /movimientos/{doc} {
       allow read:   if isMember();
-      allow create: if canWrite()
+      allow create: if (isAdmin() || (isCobrador() && clienteBelongsToMyRuta(request.resource.data.clienteId)))
                     && request.resource.data.keys().hasAll(['prestamoId','clienteId','cuotaNro','monto','tipo','fecha','creadoEn'])
                     && request.resource.data.monto > 0
                     && request.resource.data.tipo in ['cuota', 'pago-monto'];
