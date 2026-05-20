@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
@@ -93,29 +93,41 @@ export function AuthProvider({ children }) {
   const puedeEditar = esAdmin || esCobrador;
 
   // Combinar userDoc con datos frescos del memberDoc
-  const mergedUserDoc = userDoc
-    ? { ...userDoc, rutaId: rutaIdAsignada, montoAsignado, rol }
-    : userDoc;
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        userDoc: mergedUserDoc,
-        rol,
-        rutaIdAsignada,
-        clienteIdAsignado,
-        esAdmin,
-        esCobrador,
-        esVisitante,
-        esCliente,
-        puedeEditar,
-        authError,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const mergedUserDoc = useMemo(
+    () => (userDoc ? { ...userDoc, rutaId: rutaIdAsignada, montoAsignado, rol } : userDoc),
+    [userDoc, rutaIdAsignada, montoAsignado, rol],
   );
+
+  const value = useMemo(
+    () => ({
+      user,
+      userDoc: mergedUserDoc,
+      rol,
+      rutaIdAsignada,
+      clienteIdAsignado,
+      esAdmin,
+      esCobrador,
+      esVisitante,
+      esCliente,
+      puedeEditar,
+      authError,
+    }),
+    [
+      user,
+      mergedUserDoc,
+      rol,
+      rutaIdAsignada,
+      clienteIdAsignado,
+      esAdmin,
+      esCobrador,
+      esVisitante,
+      esCliente,
+      puedeEditar,
+      authError,
+    ],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {

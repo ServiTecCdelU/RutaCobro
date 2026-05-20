@@ -74,6 +74,15 @@ El admin define su capital total y asigna una porción a cada cobrador junto con
 ## Roles (Firestore rules)
 4 roles: `admin`, `cobrador`, `visitante`, `cliente`. Colección de membresía es `/usuarios/{uid}`. Las reglas validan permisos por rol y por ruta asignada.
 
+## Firestore local
+`initializeFirestore` usa `persistentLocalCache` con `persistentMultipleTabManager` — los datos se cachean en IndexedDB y se sincronizan entre pestañas. Esto permite operaciones offline y arranque rápido.
+
+## Firestore Security Rules
+Las reglas están en `firestore.rules`. La lógica de permisos se basa en la colección `/usuarios/{uid}` (membresía). Helpers clave: `isAdmin()`, `isCobrador()`, `canWrite()` (admin o cobrador), `myRutaId()`. Movimientos son inmutables (no se permite `update`). Cobradores solo acceden a clientes de su ruta.
+
+## Deploy
+Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `firebase.json` es un archivo autogenerado y NO debe commitearse con credenciales.
+
 ## PWA
 `vite-plugin-pwa` con `selfDestroying: true` — desregistra el SW automáticamente. No hay Service Worker activo en producción actualmente (decisión deliberada para evitar cache stale).
 
@@ -99,6 +108,7 @@ VITE_FIREBASE_PROJECT_ID=
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
 ```
 
 ## Comandos

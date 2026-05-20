@@ -112,22 +112,30 @@ export function DataProvider({ children }) {
     return prestamos.filter((p) => idsPermitidos.has(p.clienteId));
   }, [prestamos, clientesVisibles, rutaIdAsignada, esAdmin, esCliente, clienteIdAsignado]);
 
-  return (
-    <DataContext.Provider
-      value={{
-        rutas: rutasVisibles,
-        clientes: clientesVisibles,
-        prestamos: prestamosVisibles,
-        prestamosAll: prestamos,
-        rutasAll: rutas,
-        tenantConfig: negocioConfig,
-        syncing,
-        dataError,
-      }}
-    >
-      {children}
-    </DataContext.Provider>
+  const value = useMemo(
+    () => ({
+      rutas: rutasVisibles,
+      clientes: clientesVisibles,
+      prestamos: prestamosVisibles,
+      prestamosAll: prestamos,
+      rutasAll: rutas,
+      tenantConfig: negocioConfig,
+      syncing,
+      dataError,
+    }),
+    [
+      rutasVisibles,
+      clientesVisibles,
+      prestamosVisibles,
+      prestamos,
+      rutas,
+      negocioConfig,
+      syncing,
+      dataError,
+    ],
   );
+
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
 
 export const useData = () => {

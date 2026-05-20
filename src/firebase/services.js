@@ -98,14 +98,24 @@ export const actualizarCliente = (id, data) => updateDoc(ref('clientes', id), da
 
 export const eliminarCliente = (id) => deleteDoc(ref('clientes', id));
 
+const commitInChunks = async (refs) => {
+  const LIMIT = 499;
+  for (let i = 0; i < refs.length; i += LIMIT) {
+    const batch = writeBatch(db);
+    refs.slice(i, i + LIMIT).forEach((r) => batch.delete(r));
+    await batch.commit();
+  }
+};
+
 export const eliminarClienteCompleto = async (clienteId) => {
   const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
   const movsSnap = await getDocs(query(col('movimientos'), where('clienteId', '==', clienteId)));
-  const batch = writeBatch(db);
-  prestamosSnap.docs.forEach((d) => batch.delete(d.ref));
-  movsSnap.docs.forEach((d) => batch.delete(d.ref));
-  batch.delete(ref('clientes', clienteId));
-  await batch.commit();
+  const allRefs = [
+    ...movsSnap.docs.map((d) => d.ref),
+    ...prestamosSnap.docs.map((d) => d.ref),
+    ref('clientes', clienteId),
+  ];
+  await commitInChunks(allRefs);
 };
 
 // ── Préstamos ─────────────────────────────────────────────────────────────────
@@ -121,10 +131,8 @@ export const actualizarPrestamo = (id, data) => updateDoc(ref('prestamos', id), 
 
 export const eliminarPrestamo = async (id) => {
   const movsSnap = await getDocs(query(col('movimientos'), where('prestamoId', '==', id)));
-  const batch = writeBatch(db);
-  movsSnap.docs.forEach((d) => batch.delete(d.ref));
-  batch.delete(ref('prestamos', id));
-  await batch.commit();
+  const allRefs = [...movsSnap.docs.map((d) => d.ref), ref('prestamos', id)];
+  await commitInChunks(allRefs);
 };
 
 export const cobrarCuota = async (prestamoId, nroCuota) => {
@@ -301,37 +309,42 @@ export const crearInvitacion = async ({
 export const eliminarInvitacion = (token) => deleteDoc(inviteRef(token));
 
 export const aceptarInvitacion = async (uid, email, token) => {
-  const invSnap = await getDoc(inviteRef(token));
-  if (!invSnap.exists()) throw new Error('La invitación no existe o ya fue usada');
-  const inv = invSnap.data();
+  return runTransaction(db, async (tx) => {
+    const invSnap = await tx.get(inviteRef(token));
+    if (!invSnap.exists()) throw new Error('La invitación no existe o ya fue usada');
+    const inv = invSnap.data();
 
-  const batch = writeBatch(db);
-  batch.set(memberRef(uid), {
-    rol: inv.rol,
-    rutaId: inv.rutaId ?? null,
-    montoAsignado: inv.montoAsignado ?? null,
-    email,
-    inviteToken: token,
-    creadoEn: serverTimestamp(),
-  });
-  batch.set(userRef(uid), {
-    rol: inv.rol,
-    rutaId: inv.rutaId ?? null,
-    montoAsignado: inv.montoAsignado ?? null,
-    email,
-    creadoEn: serverTimestamp(),
-  });
-  batch.delete(inviteRef(token));
-  await batch.commit();
+    tx.set(memberRef(uid), {
+      rol: inv.rol,
+      rutaId: inv.rutaId ?? null,
+      montoAsignado: inv.montoAsignado ?? null,
+      email,
+      inviteToken: token,
+      creadoEn: serverTimestamp(),
+    });
+    tx.set(userRef(uid), {
+      rol: inv.rol,
+      rutaId: inv.rutaId ?? null,
+      montoAsignado: inv.montoAsignado ?? null,
+      email,
+      creadoEn: serverTimestamp(),
+    });
+    tx.delete(inviteRef(token));
 
-  return {
-    rol: inv.rol,
-    rutaId: inv.rutaId ?? null,
-    montoAsignado: inv.montoAsignado ?? null,
-  };
+    return {
+      rol: inv.rol,
+      rutaId: inv.rutaId ?? null,
+      montoAsignado: inv.montoAsignado ?? null,
+    };
+  });
 };
 
-export const eliminarMiembro = (uid) => deleteDoc(memberRef(uid));
+export const eliminarMiembro = async (uid) => {
+  const batch = writeBatch(db);
+  batch.delete(memberRef(uid));
+  batch.delete(userRef(uid));
+  await batch.commit();
+};
 
 export const actualizarMiembro = (uid, data) => updateDoc(memberRef(uid), data);
 
@@ -362,8 +375,16 @@ export const revertirCuota = async (prestamoId, nroCuota) => {
     where('cuotaNro', '==', nroCuota),
   );
 
+  // Leer movimientos ANTES de la transacción (no soporta queries dentro de tx)
+  const movsSnap = await getDocs(movsQuery);
+  const movRefs = movsSnap.docs.map((d) => d.ref);
+
   return runTransaction(db, async (tx) => {
-    const [snap, movsSnap] = await Promise.all([tx.get(prestamoRef), getDocs(movsQuery)]);
+    // Leer préstamo y verificar que los movimientos siguen existiendo dentro de la tx
+    const [snap, ...movSnaps] = await Promise.all([
+      tx.get(prestamoRef),
+      ...movRefs.map((r) => tx.get(r)),
+    ]);
     if (!snap.exists()) throw new Error('Préstamo no encontrado');
 
     const prestamo = snap.data();
@@ -376,8 +397,11 @@ export const revertirCuota = async (prestamoId, nroCuota) => {
       estado: 'activo',
     });
 
-    movsSnap.docs.forEach((d) => tx.delete(d.ref));
+    // Solo borrar movimientos que aún existen
+    for (const movSnap of movSnaps) {
+      if (movSnap.exists()) tx.delete(movSnap.ref);
+    }
 
-    return { nroCuota, movsEliminados: movsSnap.size };
+    return { nroCuota, movsEliminados: movSnaps.filter((s) => s.exists()).length };
   });
 };

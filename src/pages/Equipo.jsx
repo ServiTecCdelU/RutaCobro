@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Users,
   UserPlus,
@@ -23,6 +23,7 @@ export default function Equipo() {
     esAdmin,
     rutasAll,
     prestamosAll,
+    clientes,
     tenantConfig,
     error,
     subscribeMiembros,
@@ -52,6 +53,9 @@ export default function Equipo() {
   // Editar monto de miembro
   const [editandoMiembro, setEditandoMiembro] = useState(null);
   const [montoEditInput, setMontoEditInput] = useState('');
+
+  // Mapa clienteId → rutaId para resolver la ruta de cada préstamo
+  const clienteRutaMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.rutaId])), [clientes]);
 
   useEffect(() => {
     if (!esAdmin) return;
@@ -87,7 +91,7 @@ export default function Equipo() {
   const getCapitalEnCalle = (rutaId) => {
     if (!rutaId || !prestamosAll) return 0;
     return prestamosAll
-      .filter((p) => p.estado === 'activo' && p.rutaId === rutaId)
+      .filter((p) => p.estado === 'activo' && clienteRutaMap.get(p.clienteId) === rutaId)
       .reduce((sum, p) => sum + (p.monto ?? 0), 0);
   };
 
