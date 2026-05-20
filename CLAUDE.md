@@ -21,83 +21,58 @@ Sistema de gestión de cartera de préstamos organizados por rutas de cobro. Ree
 ## Estructura de carpetas
 ```
 src/
-├── firebase/       Configuración e inicialización de Firebase + todos los servicios Firestore
-├── context/        AppContext — estado global, listeners onSnapshot, acciones CRUD
-├── hooks/          useMetricas, useModal
+├── firebase/       config.js (init Firebase) + services.js (todas las operaciones Firestore)
+├── context/        AuthContext, DataContext, AppContext — 3 capas (ver sección abajo)
+├── hooks/          useMetricas, useModal, useCobrar, useDarkMode, usePaginacion
 ├── utils/          formatters (moneda, fechas) + calculos (cuotas, atraso, fechas)
 ├── components/
 │   ├── layout/     Header (nav + hamburger mobile) + Layout (bottom nav mobile)
-│   ├── ui/         MetricCard, RutaSelector, Toast, EmptyState, ConfirmDialog, ErrorBanner
-│   ├── dashboard/  BarChart, RutaPerformance, CuotasHoy
-│   ├── clientes/   ClienteCard
+│   ├── ui/         MetricCard, RutaSelector, Toast, EmptyState, ConfirmDialog, ErrorBanner,
+│   │               BusquedaGlobal, Paginacion, ActionMenu
+│   ├── dashboard/  BarChart, RutaPerformance, CuotasHoy, MoraChart
+│   ├── clientes/   ClienteCard, NotasCliente
 │   └── modals/     ModalDetalle, ModalNuevoPrestamo, ModalNuevoCliente, ModalPago, ModalRuta
-└── pages/          Login, Dashboard, Clientes, Rutas, Movimientos, Equipo, AceptarInvitacion
+├── components/     ErrorBoundary, Onboarding, PwaUpdater (raíz de components/)
+└── pages/          Login, Dashboard, Clientes, Rutas, Movimientos, Equipo, AceptarInvitacion, Configuracion
 ```
 
 ## Modelo de datos Firestore
+Paths planos, sin multi-tenancy. Colecciones en raíz:
 ```
-tenants/{userId}/
-  rutas/{rutaId}
-    nombre: string
-    color: string (hex)
-    cobrador: string
-    creadoEn: Timestamp
+config/negocio              ← capitalTotal, adminUid, creadoEn
 
-  clientes/{clienteId}
-    nombre: string
-    dni: string
-    tel: string
-    direccion: string
-    rutaId: string (ref a rutas)
-    creadoEn: Timestamp
+users/{uid}                 ← perfil de auth (rol, email)
 
-  prestamos/{prestamoId}
-    clienteId: string (ref a clientes)
-    monto: number (capital)
-    interes: number (%)
-    cuotas: number (cantidad)
-    fechaInicio: string (YYYY-MM-DD)
-    estado: 'activo' | 'mora' | 'finalizado'
-    cuotasDetalle: Array<{
-      nro: number
-      monto: number
-      vencimiento: string (YYYY-MM-DD)
-      pagada: boolean
-      fechaPago: string | null
-    }>
-    creadoEn: Timestamp
+rutas/{rutaId}              ← nombre, color (hex), cobrador, creadoEn
 
-  movimientos/{movId}           ← auditoría de cada cobro
-    prestamoId: string
-    clienteId: string
-    cuotaNro: number
-    monto: number
-    tipo: 'cuota' | 'pago-monto'  ← 'pago-monto' indica pago parcial
-    fecha: string (YYYY-MM-DD)
-    creadoEn: Timestamp
+clientes/{clienteId}        ← nombre, dni, tel, direccion, rutaId (ref), creadoEn
 
-  miembros/{uid}                ← cobradores del tenant
-    email: string
-    rol: 'admin' | 'cobrador'
-    rutaId: string (solo cobradores)
-    creadoEn: Timestamp
+prestamos/{prestamoId}      ← clienteId, monto, interes, cuotas, fechaInicio,
+                              estado: 'activo'|'mora'|'finalizado',
+                              cuotasDetalle: Array<{ nro, monto, vencimiento, pagada, fechaPago }>
 
-  invitaciones/{token}          ← links pendientes de aceptar
-    email: string
-    rutaId: string
-    creadoEn: Timestamp
+movimientos/{movId}         ← prestamoId, clienteId, cuotaNro, monto,
+                              tipo: 'cuota'|'pago-monto', fecha, creadoEn
+
+usuarios/{uid}              ← membresía (rol, rutaId, montoAsignado, email)
+
+invitaciones/{token}        ← email, rol, rutaId, montoAsignado, creadoEn
+
+notas/{notaId}              ← clienteId, texto, autor, creadoEn
 ```
 
-## Multi-tenancy
-Cada usuario autenticado es su propio tenant. `tenantId = user.uid`. Todos los paths de Firestore usan `tenants/${tenantId}/...`.
+## Modelo de negocio único (sin multi-tenancy)
+Un solo negocio por instalación. El primer usuario que se registra se convierte en admin. Los cobradores se unen vía invitación. Usuarios nuevos sin invitación son rechazados. `config/negocio` almacena `adminUid` y `capitalTotal`.
+
+El admin define su capital total y asigna una porción a cada cobrador junto con una ruta.
 
 ## Arquitectura de contexto (3 capas)
-- `AuthContext` — maneja Firebase Auth, login/logout, estado `user`, `tenantId`, `esAdmin`, `rol`.
+- `AuthContext` — maneja Firebase Auth, login/logout, estado `user`, `esAdmin`, `rol`.
 - `DataContext` — abre listeners `onSnapshot` para rutas, clientes y préstamos; expone arrays reactivos.
-- `AppContext` — compone Auth + Data + acciones CRUD (wrapper de `firebase/services.js` curried con `tenantId`).
+- `AppContext` — compone Auth + Data + acciones CRUD (expone funciones de `firebase/services.js` directamente, sin currying).
 
 ## Roles (Firestore rules)
-4 roles: `admin`, `cobrador`, `visitante`, `cliente`. Colección real de membresía es `tenants/{tid}/usuarios/{uid}` (no `miembros`). Las reglas validan permisos por rol y por ruta asignada.
+4 roles: `admin`, `cobrador`, `visitante`, `cliente`. Colección de membresía es `/usuarios/{uid}`. Las reglas validan permisos por rol y por ruta asignada.
 
 ## PWA
 `vite-plugin-pwa` con `selfDestroying: true` — desregistra el SW automáticamente. No hay Service Worker activo en producción actualmente (decisión deliberada para evitar cache stale).
@@ -106,16 +81,17 @@ Cada usuario autenticado es su propio tenant. `tenantId = user.uid`. Todos los p
 - `cobrarCuota` y `pagarMonto` usan `runTransaction` — actualizan cuota(s) y registran movimiento de forma atómica.
 - `pagarMonto` distribuye el monto recibido sobre cuotas pendientes en orden (parciales → completas), registra `tipo: 'pago-monto'`.
 - `revertirCuota` deshace un cobro: borra el movimiento y desmarca la cuota como pagada (transacción).
-- `AppContext` abre listeners `onSnapshot` al loguearse y los cierra al desloguearse.
+- `DataContext` abre listeners `onSnapshot` al loguearse y los cierra al desloguearse.
 - Métricas completamente derivadas de `prestamos + clientes + rutas` en `useMetricas.js` (sin estado propio).
 - Modales usan `useModal(onClose)` — bloquea scroll del body y cierra con Escape.
 - Modales full-screen en mobile (`items-end`), centrados en desktop (`sm:items-center`).
 - Bottom tab bar solo en mobile (`md:hidden`), nav horizontal en desktop.
-- `esAdmin` en AppContext: `true` si `user.uid === tenantId` (dueño del tenant).
+- `esAdmin`: `true` si el rol del usuario es `'admin'`.
 - Cobradores solo ven su ruta; admins ven todo. La página `/equipo` bloquea a no-admins.
+- `bootstrapAdmin` crea 3 docs atómicamente: `/users/{uid}`, `/usuarios/{uid}`, `/config/negocio`.
 
 ## Variables de entorno
-Copiar `.env.example` → `.env` y completar con credenciales del proyecto Firebase.
+Crear `.env` con credenciales del proyecto Firebase (no existe `.env.example`):
 ```
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=

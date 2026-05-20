@@ -20,7 +20,6 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 export default function Equipo() {
   const {
     user,
-    tenantId,
     esAdmin,
     rutasAll,
     prestamosAll,
@@ -55,21 +54,21 @@ export default function Equipo() {
   const [montoEditInput, setMontoEditInput] = useState('');
 
   useEffect(() => {
-    if (!tenantId || !esAdmin) return;
+    if (!esAdmin) return;
     const u1 = subscribeMiembros(setMiembros);
     const u2 = subscribeInvitaciones(setInvitaciones);
     return () => {
       u1();
       u2();
     };
-  }, [tenantId, esAdmin, subscribeMiembros, subscribeInvitaciones]);
+  }, [esAdmin, subscribeMiembros, subscribeInvitaciones]);
 
   if (!esAdmin) {
     return (
       <EmptyState
         icon={Shield}
         title="Solo administradores"
-        description="Esta sección está disponible únicamente para el dueño del tenant."
+        description="Esta sección está disponible únicamente para el administrador."
       />
     );
   }
@@ -153,7 +152,7 @@ export default function Equipo() {
       setRolNuevo('cobrador');
       setRutaNueva('');
       setMontoNuevo(0);
-      const link = buildInviteLink(tenantId, token);
+      const link = buildInviteLink(token);
       await navigator.clipboard?.writeText(link).catch(() => {});
       toast.success('Invitación creada', { description: 'Link copiado al portapapeles' });
     } catch (err) {
@@ -164,7 +163,7 @@ export default function Equipo() {
   };
 
   const handleCopiar = async (token) => {
-    const link = buildInviteLink(tenantId, token);
+    const link = buildInviteLink(token);
     try {
       await navigator.clipboard.writeText(link);
       setCopiado(token);
@@ -619,8 +618,8 @@ export default function Equipo() {
   );
 }
 
-function buildInviteLink(tenantId, token) {
+function buildInviteLink(token) {
   const base = `${window.location.origin}/aceptar`;
-  const params = new URLSearchParams({ tid: tenantId, token });
+  const params = new URLSearchParams({ token });
   return `${base}?${params.toString()}`;
 }

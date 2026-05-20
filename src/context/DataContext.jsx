@@ -3,24 +3,24 @@ import {
   subscribeRutas,
   subscribeClientes,
   subscribePrestamos,
-  subscribeTenantConfig,
+  subscribeNegocioConfig,
 } from '@/firebase/services';
 import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const { tenantId, esAdmin, esCliente, rutaIdAsignada, clienteIdAsignado } = useAuth();
+  const { userDoc, esAdmin, esCliente, rutaIdAsignada, clienteIdAsignado } = useAuth();
 
   const [rutas, setRutas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [prestamos, setPrestamos] = useState([]);
-  const [tenantConfig, setTenantConfig] = useState(null);
+  const [negocioConfig, setNegocioConfig] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [dataError, setDataError] = useState(null);
 
   useEffect(() => {
-    if (!tenantId) {
+    if (!userDoc) {
       setRutas([]);
       setClientes([]);
       setPrestamos([]);
@@ -51,48 +51,35 @@ export function DataProvider({ children }) {
     };
 
     const unsubs = [
-      subscribeTenantConfig(
-        tenantId,
+      subscribeNegocioConfig(
         (cfg) => {
-          if (!cancelled) setTenantConfig(cfg);
+          if (!cancelled) setNegocioConfig(cfg);
         },
         (err) => {
           if (err.code !== 'permission-denied') handleError(err);
         },
       ),
-      subscribeRutas(
-        tenantId,
-        (d) => {
-          if (!cancelled) {
-            setRutas(d);
-            ready.rutas = true;
-            done();
-          }
-        },
-        handleError,
-      ),
-      subscribeClientes(
-        tenantId,
-        (d) => {
-          if (!cancelled) {
-            setClientes(d);
-            ready.clientes = true;
-            done();
-          }
-        },
-        handleError,
-      ),
-      subscribePrestamos(
-        tenantId,
-        (d) => {
-          if (!cancelled) {
-            setPrestamos(d);
-            ready.prestamos = true;
-            done();
-          }
-        },
-        handleError,
-      ),
+      subscribeRutas((d) => {
+        if (!cancelled) {
+          setRutas(d);
+          ready.rutas = true;
+          done();
+        }
+      }, handleError),
+      subscribeClientes((d) => {
+        if (!cancelled) {
+          setClientes(d);
+          ready.clientes = true;
+          done();
+        }
+      }, handleError),
+      subscribePrestamos((d) => {
+        if (!cancelled) {
+          setPrestamos(d);
+          ready.prestamos = true;
+          done();
+        }
+      }, handleError),
     ];
 
     const timeout = setTimeout(() => {
@@ -104,7 +91,7 @@ export function DataProvider({ children }) {
       unsubs.forEach((u) => u());
       clearTimeout(timeout);
     };
-  }, [tenantId]);
+  }, [userDoc]);
 
   const rutasVisibles = useMemo(() => {
     if (esAdmin || !rutaIdAsignada) return rutas;
@@ -133,7 +120,7 @@ export function DataProvider({ children }) {
         prestamos: prestamosVisibles,
         prestamosAll: prestamos,
         rutasAll: rutas,
-        tenantConfig,
+        tenantConfig: negocioConfig,
         syncing,
         dataError,
       }}

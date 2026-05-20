@@ -4,7 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 
 export default function Configuracion() {
-  const { tenantId, user } = useApp();
+  const { user } = useApp();
   const toast = useToast();
 
   const [nombreNegocio, setNombreNegocio] = useState('');
@@ -16,7 +16,7 @@ export default function Configuracion() {
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-display">
           Configuracion
         </h1>
-        <p className="text-sm text-slate-500 mt-1">Ajustes generales de tu cuenta y tenant.</p>
+        <p className="text-sm text-slate-500 mt-1">Ajustes generales de tu cuenta.</p>
       </div>
 
       {/* Info del tenant */}
@@ -32,17 +32,6 @@ export default function Configuracion() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">
-              Tenant ID
-            </label>
-            <input
-              type="text"
-              value={tenantId ?? ''}
-              readOnly
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
-            />
-          </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">
               Email admin

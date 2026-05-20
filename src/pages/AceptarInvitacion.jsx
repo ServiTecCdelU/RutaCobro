@@ -6,7 +6,6 @@ import { aceptarInvitacion } from '@/firebase/services';
 
 export default function AceptarInvitacion() {
   const [params] = useSearchParams();
-  const tid = params.get('tid');
   const token = params.get('token');
   const { user } = useApp();
   const navigate = useNavigate();
@@ -16,7 +15,7 @@ export default function AceptarInvitacion() {
   useEffect(() => {
     if (user === undefined) return;
     if (!user) return;
-    if (!tid || !token) {
+    if (!token) {
       setEstado('error');
       setMensaje('El link no es válido');
       return;
@@ -25,7 +24,7 @@ export default function AceptarInvitacion() {
     (async () => {
       setEstado('procesando');
       try {
-        await aceptarInvitacion(user.uid, user.email ?? '', tid, token);
+        await aceptarInvitacion(user.uid, user.email ?? '', token);
         if (cancelled) return;
         setEstado('ok');
         setTimeout(() => window.location.assign('/'), 1500);
@@ -35,8 +34,10 @@ export default function AceptarInvitacion() {
         setMensaje(err.message ?? 'No se pudo aceptar la invitación');
       }
     })();
-    return () => { cancelled = true; };
-  }, [user, tid, token]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, token]);
 
   if (user === undefined) {
     return (
@@ -47,7 +48,7 @@ export default function AceptarInvitacion() {
   }
 
   if (!user) {
-    const next = encodeURIComponent(`/aceptar?tid=${tid ?? ''}&token=${token ?? ''}`);
+    const next = encodeURIComponent(`/aceptar?token=${token ?? ''}`);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 

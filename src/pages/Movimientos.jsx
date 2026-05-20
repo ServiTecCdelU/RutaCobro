@@ -42,7 +42,7 @@ export default function Movimientos() {
     setLoadError(null);
     const [desde, hasta] =
       fechaDesde <= fechaHasta ? [fechaDesde, fechaHasta] : [fechaHasta, fechaDesde];
-    const unsub = subscribeMovimientosPorRango(user.uid, desde, hasta, setMovimientos, (err) =>
+    const unsub = subscribeMovimientosPorRango(desde, hasta, setMovimientos, (err) =>
       setLoadError(err.message ?? 'Error cargando movimientos'),
     );
     return unsub;

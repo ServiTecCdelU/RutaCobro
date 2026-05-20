@@ -18,12 +18,13 @@ import {
 import { db } from './config';
 import { hoy } from '@/utils/calculos';
 
-const col = (tenantId, name) => collection(db, `tenants/${tenantId}/${name}`);
-const ref = (tenantId, name, id) => doc(db, `tenants/${tenantId}/${name}`, id);
-const tenantRef = (tid) => doc(db, 'tenants', tid);
+// Paths planos — negocio único, sin multi-tenancy
+const col = (name) => collection(db, name);
+const ref = (name, id) => doc(db, name, id);
+const configRef = () => doc(db, 'config', 'negocio');
 const userRef = (uid) => doc(db, 'users', uid);
-const inviteRef = (tid, token) => doc(db, `tenants/${tid}/invitaciones`, token);
-const memberRef = (tid, uid) => doc(db, `tenants/${tid}/usuarios`, uid);
+const inviteRef = (token) => doc(db, 'invitaciones', token);
+const memberRef = (uid) => doc(db, 'usuarios', uid);
 
 const randomToken = () => {
   const arr = new Uint8Array(16);
@@ -43,11 +44,11 @@ const listen = (q, cb, onError) =>
     },
   );
 
-// ── Tenant config ────────────────────────────────────────────────────────────
+// ── Config del negocio ───────────────────────────────────────────────────────
 
-export const subscribeTenantConfig = (tenantId, cb, onError) =>
+export const subscribeNegocioConfig = (cb, onError) =>
   onSnapshot(
-    tenantRef(tenantId),
+    configRef(),
     (snap) => cb(snap.exists() ? { id: snap.id, ...snap.data() } : null),
     (err) => {
       console.error('[firestore]', err);
@@ -55,24 +56,23 @@ export const subscribeTenantConfig = (tenantId, cb, onError) =>
     },
   );
 
-export const actualizarCapitalTotal = (tenantId, capitalTotal) =>
-  setDoc(tenantRef(tenantId), { capitalTotal }, { merge: true });
+export const actualizarCapitalTotal = (capitalTotal) =>
+  setDoc(configRef(), { capitalTotal }, { merge: true });
 
 // ── Listeners en tiempo real ──────────────────────────────────────────────────
 
-export const subscribeRutas = (tenantId, cb, onError) =>
-  listen(col(tenantId, 'rutas'), cb, onError);
+export const subscribeRutas = (cb, onError) => listen(col('rutas'), cb, onError);
 
-export const subscribeClientes = (tenantId, cb, onError) =>
-  listen(query(col(tenantId, 'clientes'), orderBy('nombre')), cb, onError);
+export const subscribeClientes = (cb, onError) =>
+  listen(query(col('clientes'), orderBy('nombre')), cb, onError);
 
-export const subscribePrestamos = (tenantId, cb, onError) =>
-  listen(query(col(tenantId, 'prestamos'), orderBy('fechaInicio', 'desc')), cb, onError);
+export const subscribePrestamos = (cb, onError) =>
+  listen(query(col('prestamos'), orderBy('fechaInicio', 'desc')), cb, onError);
 
-export const subscribeMovimientosPorRango = (tenantId, desde, hasta, cb, onError) =>
+export const subscribeMovimientosPorRango = (desde, hasta, cb, onError) =>
   listen(
     query(
-      col(tenantId, 'movimientos'),
+      col('movimientos'),
       where('fecha', '>=', desde),
       where('fecha', '<=', hasta),
       orderBy('fecha', 'desc'),
@@ -83,62 +83,53 @@ export const subscribeMovimientosPorRango = (tenantId, desde, hasta, cb, onError
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 
-export const crearRuta = (tenantId, data) =>
-  addDoc(col(tenantId, 'rutas'), { ...data, creadoEn: serverTimestamp() });
+export const crearRuta = (data) => addDoc(col('rutas'), { ...data, creadoEn: serverTimestamp() });
 
-export const actualizarRuta = (tenantId, id, data) => updateDoc(ref(tenantId, 'rutas', id), data);
+export const actualizarRuta = (id, data) => updateDoc(ref('rutas', id), data);
 
-export const eliminarRuta = (tenantId, id) => deleteDoc(ref(tenantId, 'rutas', id));
+export const eliminarRuta = (id) => deleteDoc(ref('rutas', id));
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
 
-export const crearCliente = (tenantId, data) =>
-  addDoc(col(tenantId, 'clientes'), { ...data, creadoEn: serverTimestamp() });
+export const crearCliente = (data) =>
+  addDoc(col('clientes'), { ...data, creadoEn: serverTimestamp() });
 
-export const actualizarCliente = (tenantId, id, data) =>
-  updateDoc(ref(tenantId, 'clientes', id), data);
+export const actualizarCliente = (id, data) => updateDoc(ref('clientes', id), data);
 
-export const eliminarCliente = (tenantId, id) => deleteDoc(ref(tenantId, 'clientes', id));
+export const eliminarCliente = (id) => deleteDoc(ref('clientes', id));
 
-export const eliminarClienteCompleto = async (tenantId, clienteId) => {
-  const prestamosSnap = await getDocs(
-    query(col(tenantId, 'prestamos'), where('clienteId', '==', clienteId)),
-  );
-  const movsSnap = await getDocs(
-    query(col(tenantId, 'movimientos'), where('clienteId', '==', clienteId)),
-  );
+export const eliminarClienteCompleto = async (clienteId) => {
+  const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
+  const movsSnap = await getDocs(query(col('movimientos'), where('clienteId', '==', clienteId)));
   const batch = writeBatch(db);
   prestamosSnap.docs.forEach((d) => batch.delete(d.ref));
   movsSnap.docs.forEach((d) => batch.delete(d.ref));
-  batch.delete(ref(tenantId, 'clientes', clienteId));
+  batch.delete(ref('clientes', clienteId));
   await batch.commit();
 };
 
 // ── Préstamos ─────────────────────────────────────────────────────────────────
 
-export const crearPrestamo = (tenantId, data) =>
-  addDoc(col(tenantId, 'prestamos'), {
+export const crearPrestamo = (data) =>
+  addDoc(col('prestamos'), {
     ...data,
     estado: 'activo',
     creadoEn: serverTimestamp(),
   });
 
-export const actualizarPrestamo = (tenantId, id, data) =>
-  updateDoc(ref(tenantId, 'prestamos', id), data);
+export const actualizarPrestamo = (id, data) => updateDoc(ref('prestamos', id), data);
 
-export const eliminarPrestamo = async (tenantId, id) => {
-  const movsSnap = await getDocs(
-    query(col(tenantId, 'movimientos'), where('prestamoId', '==', id)),
-  );
+export const eliminarPrestamo = async (id) => {
+  const movsSnap = await getDocs(query(col('movimientos'), where('prestamoId', '==', id)));
   const batch = writeBatch(db);
   movsSnap.docs.forEach((d) => batch.delete(d.ref));
-  batch.delete(ref(tenantId, 'prestamos', id));
+  batch.delete(ref('prestamos', id));
   await batch.commit();
 };
 
-export const cobrarCuota = async (tenantId, prestamoId, nroCuota) => {
-  const prestamoRef = ref(tenantId, 'prestamos', prestamoId);
-  const movRef = doc(col(tenantId, 'movimientos'));
+export const cobrarCuota = async (prestamoId, nroCuota) => {
+  const prestamoRef = ref('prestamos', prestamoId);
+  const movRef = doc(col('movimientos'));
   const hoyStr = hoy();
 
   return runTransaction(db, async (tx) => {
@@ -184,9 +175,9 @@ export const cobrarCuota = async (tenantId, prestamoId, nroCuota) => {
   });
 };
 
-export const pagarMonto = async (tenantId, prestamoId, montoPago) => {
+export const pagarMonto = async (prestamoId, montoPago) => {
   if (!(montoPago > 0)) throw new Error('El monto debe ser mayor a 0');
-  const prestamoRef = ref(tenantId, 'prestamos', prestamoId);
+  const prestamoRef = ref('prestamos', prestamoId);
   const hoyStr = hoy();
 
   return runTransaction(db, async (tx) => {
@@ -230,7 +221,7 @@ export const pagarMonto = async (tenantId, prestamoId, montoPago) => {
     });
 
     for (const { nro, montoAplicado } of afectadas) {
-      const movRef = doc(col(tenantId, 'movimientos'));
+      const movRef = doc(col('movimientos'));
       tx.set(movRef, {
         prestamoId,
         clienteId: prestamo.clienteId,
@@ -257,37 +248,47 @@ export const getUserDoc = async (uid) => {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 };
 
+export const getExistingAdmin = async () => {
+  const snap = await getDoc(doc(db, 'config', 'negocio'));
+  if (!snap.exists() || !snap.data().adminUid) return null;
+  return snap.data();
+};
+
 export const bootstrapAdmin = async (uid, email) => {
   const batch = writeBatch(db);
   batch.set(userRef(uid), {
-    tenantId: uid,
     rol: 'admin',
     email,
     creadoEn: serverTimestamp(),
   });
-  batch.set(memberRef(uid, uid), {
+  batch.set(memberRef(uid), {
     rol: 'admin',
     rutaId: null,
     email,
     creadoEn: serverTimestamp(),
   });
+  batch.set(doc(db, 'config', 'negocio'), {
+    adminUid: uid,
+    capitalTotal: 0,
+    creadoEn: serverTimestamp(),
+  });
   await batch.commit();
 };
 
-export const subscribeMiembros = (tenantId, cb, onError) =>
-  listen(col(tenantId, 'usuarios'), cb, onError);
+export const subscribeMiembros = (cb, onError) => listen(col('usuarios'), cb, onError);
 
-export const subscribeInvitaciones = (tenantId, cb, onError) =>
-  listen(col(tenantId, 'invitaciones'), cb, onError);
+export const subscribeInvitaciones = (cb, onError) => listen(col('invitaciones'), cb, onError);
 
-export const crearInvitacion = async (
-  tenantId,
-  { email, rutaId, rol = 'cobrador', montoAsignado = null },
-) => {
+export const crearInvitacion = async ({
+  email,
+  rutaId,
+  rol = 'cobrador',
+  montoAsignado = null,
+}) => {
   const validRoles = ['cobrador', 'visitante', 'cliente'];
   if (!validRoles.includes(rol)) throw new Error(`Rol inválido: ${rol}`);
   const token = randomToken();
-  await setDoc(inviteRef(tenantId, token), {
+  await setDoc(inviteRef(token), {
     email: email?.trim().toLowerCase() ?? '',
     rol,
     rutaId: rutaId ?? null,
@@ -297,15 +298,15 @@ export const crearInvitacion = async (
   return token;
 };
 
-export const eliminarInvitacion = (tenantId, token) => deleteDoc(inviteRef(tenantId, token));
+export const eliminarInvitacion = (token) => deleteDoc(inviteRef(token));
 
-export const aceptarInvitacion = async (uid, email, tenantId, token) => {
-  const invSnap = await getDoc(inviteRef(tenantId, token));
+export const aceptarInvitacion = async (uid, email, token) => {
+  const invSnap = await getDoc(inviteRef(token));
   if (!invSnap.exists()) throw new Error('La invitación no existe o ya fue usada');
   const inv = invSnap.data();
 
   const batch = writeBatch(db);
-  batch.set(memberRef(tenantId, uid), {
+  batch.set(memberRef(uid), {
     rol: inv.rol,
     rutaId: inv.rutaId ?? null,
     montoAsignado: inv.montoAsignado ?? null,
@@ -314,51 +315,49 @@ export const aceptarInvitacion = async (uid, email, tenantId, token) => {
     creadoEn: serverTimestamp(),
   });
   batch.set(userRef(uid), {
-    tenantId,
     rol: inv.rol,
     rutaId: inv.rutaId ?? null,
     montoAsignado: inv.montoAsignado ?? null,
     email,
     creadoEn: serverTimestamp(),
   });
-  batch.delete(inviteRef(tenantId, token));
+  batch.delete(inviteRef(token));
   await batch.commit();
 
   return {
-    tenantId,
     rol: inv.rol,
     rutaId: inv.rutaId ?? null,
     montoAsignado: inv.montoAsignado ?? null,
   };
 };
 
-export const eliminarMiembro = (tenantId, uid) => deleteDoc(memberRef(tenantId, uid));
+export const eliminarMiembro = (uid) => deleteDoc(memberRef(uid));
 
-export const actualizarMiembro = (tenantId, uid, data) => updateDoc(memberRef(tenantId, uid), data);
+export const actualizarMiembro = (uid, data) => updateDoc(memberRef(uid), data);
 
 // ── Notas de cliente ─────────────────────────────────────────────────────────
 
-export const subscribeNotas = (tenantId, clienteId, cb, onError) =>
+export const subscribeNotas = (clienteId, cb, onError) =>
   listen(
-    query(col(tenantId, 'notas'), where('clienteId', '==', clienteId), orderBy('creadoEn', 'desc')),
+    query(col('notas'), where('clienteId', '==', clienteId), orderBy('creadoEn', 'desc')),
     cb,
     onError,
   );
 
-export const crearNota = (tenantId, { clienteId, texto, autor }) =>
-  addDoc(col(tenantId, 'notas'), {
+export const crearNota = ({ clienteId, texto, autor }) =>
+  addDoc(col('notas'), {
     clienteId,
     texto: texto.trim(),
     autor: autor ?? '',
     creadoEn: serverTimestamp(),
   });
 
-export const eliminarNota = (tenantId, id) => deleteDoc(ref(tenantId, 'notas', id));
+export const eliminarNota = (id) => deleteDoc(ref('notas', id));
 
-export const revertirCuota = async (tenantId, prestamoId, nroCuota) => {
-  const prestamoRef = ref(tenantId, 'prestamos', prestamoId);
+export const revertirCuota = async (prestamoId, nroCuota) => {
+  const prestamoRef = ref('prestamos', prestamoId);
   const movsQuery = query(
-    col(tenantId, 'movimientos'),
+    col('movimientos'),
     where('prestamoId', '==', prestamoId),
     where('cuotaNro', '==', nroCuota),
   );

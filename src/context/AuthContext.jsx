@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
-import { getUserDoc, bootstrapAdmin } from '@/firebase/services';
+import { getUserDoc, bootstrapAdmin, getExistingAdmin } from '@/firebase/services';
 
 const AuthContext = createContext(null);
 
@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
     return onAuthStateChanged(auth, (u) => setUser(u ?? null));
   }, []);
 
-  // Leer /users/{uid} para obtener tenantId y rol base
+  // Leer /users/{uid} para obtener rol base
   useEffect(() => {
     if (!user) {
       setUserDoc(null);
@@ -36,8 +36,20 @@ export function AuthProvider({ children }) {
             if (!cancelled) setUserDoc(null);
             return;
           }
+
+          const existingAdmin = await getExistingAdmin();
+          if (existingAdmin) {
+            if (!cancelled) {
+              setAuthError(
+                'No tenés acceso a este negocio. Pedile una invitación al administrador.',
+              );
+              setUserDoc(null);
+            }
+            return;
+          }
+
           await bootstrapAdmin(user.uid, user.email ?? '');
-          udoc = { id: user.uid, tenantId: user.uid, rol: 'admin', email: user.email ?? '' };
+          udoc = { id: user.uid, rol: 'admin', email: user.email ?? '' };
         }
         if (!cancelled) setUserDoc(udoc);
       } catch (err) {
@@ -52,15 +64,14 @@ export function AuthProvider({ children }) {
     };
   }, [user]);
 
-  // Listener en tiempo real del doc de miembro para obtener rutaId y montoAsignado actualizados
+  // Listener en tiempo real del doc de miembro (/usuarios/{uid})
   useEffect(() => {
-    const tenantId = userDoc?.tenantId;
     const uid = user?.uid;
-    if (!tenantId || !uid) {
+    if (!userDoc || !uid) {
       setMemberDoc(null);
       return;
     }
-    const memberRef = doc(db, `tenants/${tenantId}/usuarios/${uid}`);
+    const memberRef = doc(db, 'usuarios', uid);
     return onSnapshot(
       memberRef,
       (snap) => {
@@ -68,10 +79,9 @@ export function AuthProvider({ children }) {
       },
       () => setMemberDoc(null),
     );
-  }, [userDoc?.tenantId, user?.uid]);
+  }, [userDoc, user?.uid]);
 
   // Mergear: memberDoc tiene la info más actualizada (el admin lo edita ahí)
-  const tenantId = userDoc?.tenantId;
   const rol = memberDoc?.rol ?? userDoc?.rol;
   const rutaIdAsignada = memberDoc?.rutaId ?? userDoc?.rutaId ?? null;
   const montoAsignado = memberDoc?.montoAsignado ?? userDoc?.montoAsignado ?? null;
@@ -92,7 +102,6 @@ export function AuthProvider({ children }) {
       value={{
         user,
         userDoc: mergedUserDoc,
-        tenantId,
         rol,
         rutaIdAsignada,
         clienteIdAsignado,
