@@ -6,6 +6,7 @@ import {
   Check,
   Trash2,
   Shield,
+  ShieldPlus,
   Mail,
   DollarSign,
   Pencil,
@@ -349,6 +350,7 @@ export default function Equipo() {
               onChange={(e) => setRolNuevo(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all bg-white"
             >
+              <option value="admin">Admin</option>
               <option value="cobrador">Cobrador</option>
               <option value="visitante">Visitante (solo lectura)</option>
               <option value="cliente">Cliente (ve sus préstamos)</option>
@@ -528,6 +530,25 @@ export default function Equipo() {
                       )}
                       {!esAdminMiembro && !esYo && (
                         <button
+                          onClick={async () => {
+                            if (!window.confirm(`¿Promover a ${m.email || m.id} como admin?`))
+                              return;
+                            try {
+                              await actualizarMiembro(m.id, { rol: 'admin', rutaId: null });
+                              toast.success('Promovido a admin');
+                            } catch (err) {
+                              toast.error(err.message);
+                            }
+                          }}
+                          className="w-9 h-9 rounded-xl text-brand-600 hover:bg-brand-50 flex items-center justify-center"
+                          title="Hacer admin"
+                          aria-label="Hacer admin"
+                        >
+                          <ShieldPlus size={15} />
+                        </button>
+                      )}
+                      {!esAdminMiembro && !esYo && (
+                        <button
                           onClick={() => setConfirmEliminar(m)}
                           className="w-9 h-9 rounded-xl text-rose-600 hover:bg-rose-50 flex items-center justify-center"
                           title="Quitar del equipo"
@@ -623,7 +644,5 @@ export default function Equipo() {
 }
 
 function buildInviteLink(token) {
-  const base = `${window.location.origin}/aceptar`;
-  const params = new URLSearchParams({ token });
-  return `${base}?${params.toString()}`;
+  return `https://ruta-cobro.vercel.app/aceptar?token=${token}`;
 }

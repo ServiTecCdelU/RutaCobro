@@ -2,106 +2,165 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { auth, db } from '@/firebase/config';
-import { getUserDoc, bootstrapAdmin, getExistingAdmin } from '@/firebase/services';
+import {
+  getUserDoc,
+  bootstrapAdmin,
+  getExistingAdmin,
+  repairAdminDoc,
+  reclaimAdmin,
+} from '@/firebase/services';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(undefined);
   const [userDoc, setUserDoc] = useState(undefined);
-  const [memberDoc, setMemberDoc] = useState(null);
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => setUser(u ?? null));
   }, []);
 
-  // Leer /users/{uid} para obtener rol base
   useEffect(() => {
     if (!user) {
       setUserDoc(null);
-      setMemberDoc(null);
+      setAuthError(null);
       return;
     }
+
     let cancelled = false;
+    let unsubListener = null;
+
+    const startListener = (uid) => {
+      const memberRef = doc(db, 'usuarios', uid);
+      unsubListener = onSnapshot(
+        memberRef,
+        (snap) => {
+          if (!cancelled) {
+            setUserDoc(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+            setAuthError(null);
+          }
+        },
+        (err) => {
+          console.error('[auth] listener error /usuarios/' + uid, err.code);
+          // No resetear userDoc en error de listener — mantener el último estado válido
+        },
+      );
+    };
+
     (async () => {
       try {
-        let udoc = await getUserDoc(user.uid);
-        if (!udoc) {
-          const params = new URLSearchParams(window.location.search);
-          const isInviteFlow =
-            window.location.pathname.includes('/aceptar') ||
-            (params.get('next') && params.get('next').includes('/aceptar'));
-          if (isInviteFlow) {
-            if (!cancelled) setUserDoc(null);
-            return;
-          }
+        console.warn('[auth] uid:', user.uid, '| email:', user.email);
+        const existingDoc = await getUserDoc(user.uid);
+        console.warn('[auth] /usuarios/' + user.uid + ':', existingDoc);
 
-          const existingAdmin = await getExistingAdmin();
-          if (existingAdmin) {
+        // Caso 1: doc existe y tiene rol válido
+        if (existingDoc && existingDoc.rol) {
+          console.warn('[auth] rol:', existingDoc.rol);
+          if (!cancelled) {
+            setUserDoc(existingDoc);
+            setAuthError(null);
+            startListener(user.uid);
+          }
+          return;
+        }
+
+        // Caso 2: flujo de invitación — dejar pasar sin doc
+        const params = new URLSearchParams(window.location.search);
+        const isInviteFlow =
+          window.location.pathname.includes('/aceptar') ||
+          (params.get('next') && params.get('next').includes('/aceptar'));
+        if (isInviteFlow) {
+          console.warn('[auth] flujo de invitación, esperando');
+          if (!cancelled) setUserDoc(null);
+          return;
+        }
+
+        // Caso 3: verificar si ya hay admin configurado
+        const existingAdmin = await getExistingAdmin();
+        console.warn('[auth] config/negocio:', existingAdmin);
+
+        if (existingAdmin) {
+          console.warn('[auth] adminUid en config:', existingAdmin.adminUid, '| mi uid:', user.uid);
+          // Caso 3a: este usuario ES el admin pero falta/corrupto su doc → reparar
+          if (existingAdmin.adminUid === user.uid) {
+            console.warn('[auth] → reparando doc admin');
+            await repairAdminDoc(user.uid, user.email ?? '');
             if (!cancelled) {
-              setAuthError(
-                'No tenés acceso a este negocio. Pedile una invitación al administrador.',
-              );
-              setUserDoc(null);
+              startListener(user.uid);
+              setAuthError(null);
             }
             return;
           }
 
-          await bootstrapAdmin(user.uid, user.email ?? '');
-          udoc = { id: user.uid, rol: 'admin', email: user.email ?? '' };
+          // Caso 3b: no es el admin registrado — verificar si el admin original aún existe
+          const adminOriginal = await getUserDoc(existingAdmin.adminUid);
+          if (!adminOriginal) {
+            console.warn('[auth] → admin original huérfano, reclamando admin para', user.uid);
+            await reclaimAdmin(user.uid, user.email ?? '');
+            if (!cancelled) {
+              startListener(user.uid);
+              setAuthError(null);
+            }
+            return;
+          }
+
+          // Caso 3c: emails con acceso admin directo (sin invitación)
+          const adminsDirectos = ['daromdaro@gmail.com'];
+          if (adminsDirectos.includes(user.email?.toLowerCase())) {
+            console.warn('[auth] → admin directo por email:', user.email);
+            await repairAdminDoc(user.uid, user.email);
+            if (!cancelled) {
+              startListener(user.uid);
+              setAuthError(null);
+            }
+            return;
+          }
+
+          // Caso 3d: sin acceso → bloquear
+          console.warn('[auth] → bloqueado: uid no coincide con adminUid');
+          if (!cancelled) {
+            setAuthError('No tenés acceso a este negocio. Pedile una invitación al administrador.');
+            setUserDoc(null);
+          }
+          return;
         }
-        if (!cancelled) setUserDoc(udoc);
+
+        // Caso 4: no hay config/negocio — primer usuario, bootstrap como admin
+        console.warn('[auth] → primer usuario, bootstrap admin');
+        await bootstrapAdmin(user.uid, user.email ?? '');
+        if (!cancelled) {
+          startListener(user.uid);
+          setAuthError(null);
+        }
       } catch (err) {
+        console.error('[auth] error en init:', err);
         if (!cancelled) {
           setAuthError(`No se pudo cargar tu perfil: ${err.message}`);
           setUserDoc(null);
         }
       }
     })();
+
     return () => {
       cancelled = true;
+      unsubListener?.();
     };
   }, [user]);
 
-  // Listener en tiempo real del doc de miembro (/usuarios/{uid})
-  useEffect(() => {
-    const uid = user?.uid;
-    if (!userDoc || !uid) {
-      setMemberDoc(null);
-      return;
-    }
-    const memberRef = doc(db, 'usuarios', uid);
-    return onSnapshot(
-      memberRef,
-      (snap) => {
-        setMemberDoc(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-      },
-      () => setMemberDoc(null),
-    );
-  }, [userDoc, user?.uid]);
-
-  // Mergear: memberDoc tiene la info más actualizada (el admin lo edita ahí)
-  const rol = memberDoc?.rol ?? userDoc?.rol;
-  const rutaIdAsignada = memberDoc?.rutaId ?? userDoc?.rutaId ?? null;
-  const montoAsignado = memberDoc?.montoAsignado ?? userDoc?.montoAsignado ?? null;
-  const clienteIdAsignado = memberDoc?.clienteId ?? userDoc?.clienteId ?? null;
+  const rol = userDoc?.rol;
+  const rutaIdAsignada = userDoc?.rutaId ?? null;
+  const clienteIdAsignado = userDoc?.clienteId ?? null;
   const esAdmin = rol === 'admin';
   const esCobrador = rol === 'cobrador';
   const esVisitante = rol === 'visitante';
   const esCliente = rol === 'cliente';
   const puedeEditar = esAdmin || esCobrador;
 
-  // Combinar userDoc con datos frescos del memberDoc
-  const mergedUserDoc = useMemo(
-    () => (userDoc ? { ...userDoc, rutaId: rutaIdAsignada, montoAsignado, rol } : userDoc),
-    [userDoc, rutaIdAsignada, montoAsignado, rol],
-  );
-
   const value = useMemo(
     () => ({
       user,
-      userDoc: mergedUserDoc,
+      userDoc,
       rol,
       rutaIdAsignada,
       clienteIdAsignado,
@@ -114,7 +173,7 @@ export function AuthProvider({ children }) {
     }),
     [
       user,
-      mergedUserDoc,
+      userDoc,
       rol,
       rutaIdAsignada,
       clienteIdAsignado,

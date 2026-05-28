@@ -10,7 +10,8 @@ import { useAuth } from './AuthContext';
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const { userDoc, esAdmin, esCliente, rutaIdAsignada, clienteIdAsignado } = useAuth();
+  const { userDoc, rol, esAdmin, esCliente, esCobrador, rutaIdAsignada, clienteIdAsignado } =
+    useAuth();
 
   const [rutas, setRutas] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -20,7 +21,7 @@ export function DataProvider({ children }) {
   const [dataError, setDataError] = useState(null);
 
   useEffect(() => {
-    if (!userDoc) {
+    if (!userDoc || !rol) {
       setRutas([]);
       setClientes([]);
       setPrestamos([]);
@@ -38,17 +39,22 @@ export function DataProvider({ children }) {
       if (!cancelled && ready.rutas && ready.clientes && ready.prestamos) setSyncing(false);
     };
 
-    const handleError = (err) => {
+    const handleError = (label) => (err) => {
       if (cancelled) return;
+      console.error('[data]', label, err.code, err.message);
       setSyncing(false);
-      if (err.code === 'permission-denied') {
-        setDataError('No tenés permisos para acceder a estos datos. Contactá al administrador.');
-      } else if (err.code === 'unavailable') {
+      // Solo mostrar error si NO es permission-denied transitorio
+      if (err.code === 'unavailable') {
         setDataError('Sin conexión. Reconectando…');
-      } else {
+      } else if (err.code !== 'permission-denied') {
         setDataError(`Error de sincronización: ${err.message}`);
       }
+      // permission-denied: no mostrar banner, el AuthContext ya maneja acceso
     };
+
+    const clienteFilter = {};
+    if (esCobrador && rutaIdAsignada) clienteFilter.rutaId = rutaIdAsignada;
+    if (esCliente && clienteIdAsignado) clienteFilter.clienteId = clienteIdAsignado;
 
     const unsubs = [
       subscribeNegocioConfig(
@@ -56,7 +62,7 @@ export function DataProvider({ children }) {
           if (!cancelled) setNegocioConfig(cfg);
         },
         (err) => {
-          if (err.code !== 'permission-denied') handleError(err);
+          console.error('[data] config', err.code);
         },
       ),
       subscribeRutas((d) => {
@@ -65,21 +71,25 @@ export function DataProvider({ children }) {
           ready.rutas = true;
           done();
         }
-      }, handleError),
-      subscribeClientes((d) => {
-        if (!cancelled) {
-          setClientes(d);
-          ready.clientes = true;
-          done();
-        }
-      }, handleError),
+      }, handleError('rutas')),
+      subscribeClientes(
+        (d) => {
+          if (!cancelled) {
+            setClientes(d);
+            ready.clientes = true;
+            done();
+          }
+        },
+        handleError('clientes'),
+        clienteFilter,
+      ),
       subscribePrestamos((d) => {
         if (!cancelled) {
           setPrestamos(d);
           ready.prestamos = true;
           done();
         }
-      }, handleError),
+      }, handleError('prestamos')),
     ];
 
     const timeout = setTimeout(() => {
@@ -91,7 +101,7 @@ export function DataProvider({ children }) {
       unsubs.forEach((u) => u());
       clearTimeout(timeout);
     };
-  }, [userDoc]);
+  }, [userDoc, rol, esCobrador, esCliente, rutaIdAsignada, clienteIdAsignado]);
 
   const rutasVisibles = useMemo(() => {
     if (esAdmin || !rutaIdAsignada) return rutas;

@@ -22,7 +22,6 @@ import { hoy } from '@/utils/calculos';
 const col = (name) => collection(db, name);
 const ref = (name, id) => doc(db, name, id);
 const configRef = () => doc(db, 'config', 'negocio');
-const userRef = (uid) => doc(db, 'users', uid);
 const inviteRef = (token) => doc(db, 'invitaciones', token);
 const memberRef = (uid) => doc(db, 'usuarios', uid);
 
@@ -63,8 +62,22 @@ export const actualizarCapitalTotal = (capitalTotal) =>
 
 export const subscribeRutas = (cb, onError) => listen(col('rutas'), cb, onError);
 
-export const subscribeClientes = (cb, onError) =>
-  listen(query(col('clientes'), orderBy('nombre')), cb, onError);
+export const subscribeClientes = (cb, onError, { rutaId, clienteId } = {}) => {
+  if (clienteId) {
+    // Rol cliente: escuchar solo su propio doc
+    return onSnapshot(
+      ref('clientes', clienteId),
+      (snap) => cb(snap.exists() ? [{ id: snap.id, ...snap.data() }] : []),
+      (err) => {
+        console.error('[firestore]', err);
+        onError?.(err);
+      },
+    );
+  }
+  const constraints = [orderBy('nombre')];
+  if (rutaId) constraints.unshift(where('rutaId', '==', rutaId));
+  return listen(query(col('clientes'), ...constraints), cb, onError);
+};
 
 export const subscribePrestamos = (cb, onError) =>
   listen(query(col('prestamos'), orderBy('fechaInicio', 'desc')), cb, onError);
@@ -260,7 +273,7 @@ export const pagarMonto = async (prestamoId, montoPago) => {
 // ── Equipo: usuarios, miembros, invitaciones ─────────────────────────────────
 
 export const getUserDoc = async (uid) => {
-  const snap = await getDoc(userRef(uid));
+  const snap = await getDoc(memberRef(uid));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 };
 
@@ -271,24 +284,62 @@ export const getExistingAdmin = async () => {
 };
 
 export const bootstrapAdmin = async (uid, email) => {
-  const batch = writeBatch(db);
-  batch.set(userRef(uid), {
-    rol: 'admin',
-    email,
-    creadoEn: serverTimestamp(),
-  });
-  batch.set(memberRef(uid), {
+  console.warn('[bootstrap] Creando admin uid:', uid, 'email:', email);
+  try {
+    await setDoc(memberRef(uid), {
+      rol: 'admin',
+      rutaId: null,
+      email,
+      creadoEn: serverTimestamp(),
+    });
+    console.warn('[bootstrap] Doc /usuarios/' + uid + ' creado OK');
+  } catch (err) {
+    console.error('[bootstrap] FALLO al crear /usuarios/' + uid, err.code, err.message);
+    throw err;
+  }
+  try {
+    await setDoc(
+      configRef(),
+      {
+        adminUid: uid,
+        capitalTotal: 0,
+        creadoEn: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    console.warn('[bootstrap] Doc /config/negocio creado OK');
+  } catch (err) {
+    console.error('[bootstrap] FALLO al crear /config/negocio', err.code, err.message);
+    throw err;
+  }
+};
+
+export const repairAdminDoc = async (uid, email) => {
+  console.warn('[repair] Reparando admin uid:', uid);
+  try {
+    await setDoc(memberRef(uid), {
+      rol: 'admin',
+      rutaId: null,
+      email,
+      creadoEn: serverTimestamp(),
+    });
+    console.warn('[repair] Doc /usuarios/' + uid + ' reparado OK');
+  } catch (err) {
+    console.error('[repair] FALLO al reparar /usuarios/' + uid, err.code, err.message);
+    throw err;
+  }
+};
+
+export const reclaimAdmin = async (uid, email) => {
+  console.warn('[reclaim] Reclamando admin para uid:', uid);
+  await setDoc(memberRef(uid), {
     rol: 'admin',
     rutaId: null,
     email,
     creadoEn: serverTimestamp(),
   });
-  batch.set(doc(db, 'config', 'negocio'), {
-    adminUid: uid,
-    capitalTotal: 0,
-    creadoEn: serverTimestamp(),
-  });
-  await batch.commit();
+  await setDoc(configRef(), { adminUid: uid }, { merge: true });
+  console.warn('[reclaim] Admin reclamado OK');
 };
 
 export const subscribeMiembros = (cb, onError) => listen(col('usuarios'), cb, onError);
@@ -301,7 +352,7 @@ export const crearInvitacion = async ({
   rol = 'cobrador',
   montoAsignado = null,
 }) => {
-  const validRoles = ['cobrador', 'visitante', 'cliente'];
+  const validRoles = ['admin', 'cobrador', 'visitante', 'cliente'];
   if (!validRoles.includes(rol)) throw new Error(`Rol inválido: ${rol}`);
   const token = randomToken();
   await setDoc(inviteRef(token), {
@@ -330,13 +381,6 @@ export const aceptarInvitacion = async (uid, email, token) => {
       inviteToken: token,
       creadoEn: serverTimestamp(),
     });
-    tx.set(userRef(uid), {
-      rol: inv.rol,
-      rutaId: inv.rutaId ?? null,
-      montoAsignado: inv.montoAsignado ?? null,
-      email,
-      creadoEn: serverTimestamp(),
-    });
     tx.delete(inviteRef(token));
 
     return {
@@ -347,12 +391,7 @@ export const aceptarInvitacion = async (uid, email, token) => {
   });
 };
 
-export const eliminarMiembro = async (uid) => {
-  const batch = writeBatch(db);
-  batch.delete(memberRef(uid));
-  batch.delete(userRef(uid));
-  await batch.commit();
-};
+export const eliminarMiembro = (uid) => deleteDoc(memberRef(uid));
 
 export const actualizarMiembro = (uid, data) => updateDoc(memberRef(uid), data);
 

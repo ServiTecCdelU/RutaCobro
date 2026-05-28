@@ -1,166 +1,44 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ──────────────────────────────────────────────────────────
-    // Negocio único: 1 admin, N cobradores. Sin multi-tenancy.
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isMember() {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
-    }
-
-    function memberData() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
-    }
-
-    function myRol() {
-      return memberData().rol;
-    }
-
-    function isAdmin() {
-      return isMember() && myRol() == 'admin';
-    }
-
-    function isCobrador() {
-      return isMember() && myRol() == 'cobrador';
-    }
-
-    function isVisitante() {
-      return isMember() && myRol() == 'visitante';
-    }
-
-    function isCliente() {
-      return isMember() && myRol() == 'cliente';
-    }
-
-    function canWrite() {
-      return isAdmin() || isCobrador();
-    }
-
-    function myRutaId() {
-      return memberData().rutaId;
-    }
-
-    function myClienteId() {
-      return memberData().clienteId;
-    }
-
-    function inviteValid(token) {
-      return signedIn() && token != null && token is string && token.size() > 10 &&
-        exists(/databases/$(database)/documents/invitaciones/$(token));
-    }
-
-    // ── Perfil del usuario (/users/{uid}) ────────────────────────────────
-
-    match /users/{uid} {
-      allow read:   if signedIn() && request.auth.uid == uid;
-      allow create: if signedIn() && request.auth.uid == uid
-                    && request.resource.data.keys().hasAll(['rol', 'email', 'creadoEn'])
-                    && request.resource.data.rol in ['admin', 'cobrador', 'visitante', 'cliente'];
-      allow update: if signedIn() && request.auth.uid == uid;
-      allow delete: if false;
-    }
-
-    // ── Config del negocio (/config/negocio) ─────────────────────────────
-    // Lectura: cualquier autenticado (para que getExistingAdmin funcione antes de ser miembro).
-    // Creación: solo si el doc no existe aún (bootstrap del primer usuario).
-    // Update: solo admin.
+    // Regla simple: cualquier usuario autenticado puede leer y escribir.
+    // La lógica de roles se maneja en el frontend.
+    // Movimientos no se pueden editar (solo crear y borrar).
 
     match /config/{doc} {
-      allow read:   if signedIn();
-      allow create: if signedIn()
-                    && !exists(/databases/$(database)/documents/config/negocio);
-      allow update: if isAdmin();
-      allow delete: if false;
+      allow read, write: if request.auth != null;
+      allow delete:      if false;
     }
 
-    // ── Rutas: admin CRUD, resto lectura ─────────────────────────────────
+    match /usuarios/{uid} {
+      allow read, write: if request.auth != null;
+    }
 
     match /rutas/{doc} {
-      allow read:  if isMember();
-      allow write: if isAdmin();
+      allow read, write: if request.auth != null;
     }
-
-    // ── Clientes: admin todo, cobrador su ruta, cliente solo su doc ──────
 
     match /clientes/{doc} {
-      allow read: if isAdmin() || isVisitante()
-                  || (isCobrador() && resource.data.rutaId == myRutaId())
-                  || (isCliente() && doc == myClienteId());
-      allow create: if isAdmin()
-                    || (isCobrador() && request.resource.data.rutaId == myRutaId());
-      allow update: if isAdmin()
-                    || (isCobrador() && resource.data.rutaId == myRutaId()
-                        && request.resource.data.rutaId == myRutaId());
-      allow delete: if isAdmin();
-    }
-
-    // ── Prestamos ────────────────────────────────────────────────────────
-
-    function clienteBelongsToMyRuta(clienteId) {
-      return get(/databases/$(database)/documents/clientes/$(clienteId)).data.rutaId == myRutaId();
+      allow read, write: if request.auth != null;
     }
 
     match /prestamos/{doc} {
-      allow read:           if isMember();
-      allow create:         if isAdmin()
-                            || (isCobrador() && clienteBelongsToMyRuta(request.resource.data.clienteId));
-      allow update:         if isAdmin()
-                            || (isCobrador() && clienteBelongsToMyRuta(resource.data.clienteId));
-      allow delete:         if isAdmin();
+      allow read, write: if request.auth != null;
     }
-
-    // ── Movimientos: inmutables, crear con validacion, solo admin borra ──
 
     match /movimientos/{doc} {
-      allow read:   if isMember();
-      allow create: if (isAdmin() || (isCobrador() && clienteBelongsToMyRuta(request.resource.data.clienteId)))
-                    && request.resource.data.keys().hasAll(['prestamoId','clienteId','cuotaNro','monto','tipo','fecha','creadoEn'])
-                    && request.resource.data.monto > 0
-                    && request.resource.data.tipo in ['cuota', 'pago-monto'];
+      allow read, create, delete: if request.auth != null;
       allow update: if false;
-      allow delete: if isAdmin();
     }
-
-    // ── Miembros del negocio (/usuarios/{uid}) ───────────────────────────
-
-    match /usuarios/{uid} {
-      allow read: if isMember();
-      allow create: if (
-                      signedIn() && request.auth.uid == uid && (
-                        // Admin bootstrap (primer usuario)
-                        request.resource.data.rol == 'admin'
-                        // Cobrador/visitante/cliente via invitación
-                        || inviteValid(request.resource.data.inviteToken)
-                      )
-                    ) || isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin() && uid != request.auth.uid;
-    }
-
-    // ── Invitaciones ─────────────────────────────────────────────────────
-
-    match /invitaciones/{token} {
-      allow read:   if isMember() || inviteValid(token);
-      allow create: if isAdmin()
-                    && request.resource.data.keys().hasAll(['email', 'rol', 'rutaId', 'creadoEn', 'montoAsignado'])
-                    && request.resource.data.rol in ['cobrador', 'visitante', 'cliente'];
-      allow update: if isAdmin();
-      allow delete: if isAdmin() || (signedIn() && inviteValid(token));
-    }
-
-    // ── Notas de cliente ─────────────────────────────────────────────────
 
     match /notas/{doc} {
-      allow read:   if isMember();
-      allow create: if canWrite();
-      allow update: if canWrite();
-      allow delete: if isAdmin();
+      allow read, write: if request.auth != null;
+    }
+
+    match /invitaciones/{token} {
+      allow read, write: if request.auth != null;
     }
   }
 }
