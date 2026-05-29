@@ -31,6 +31,13 @@ export default function Dashboard() {
     .reduce((s, g) => s + (g.monto ?? 0), 0);
   const resultadoNeto = m.gananciaRealizada - gastosTotal;
 
+  // Caja real (flujo de efectivo): capital aportado + todo lo cobrado − todo lo
+  // prestado − gastos. A diferencia de "capital − en calle", esta fórmula no se
+  // rompe al reinvertir ganancias en nuevos préstamos (el dinero ya cobrado vuelve
+  // a estar disponible y la ganancia reinvertida no aparece como saldo negativo).
+  const cajaDisponible =
+    (tenantConfig?.capitalTotal ?? 0) + m.cobradoTotal - m.colocadoHistorico - gastosTotal;
+
   // Si no hay rutas ni clientes → mostrar onboarding (pero no si hay error, para no ocultarlo)
   if (!syncing && !error && rutas.length === 0 && clientes.length === 0) {
     return <Onboarding />;
@@ -61,7 +68,10 @@ export default function Dashboard() {
           const capitalEnCalle = prestamos
             .filter((p) => p.estado === 'activo')
             .reduce((sum, p) => sum + (p.monto ?? 0), 0);
-          const disponible = userDoc.montoAsignado - capitalEnCalle;
+          // Caja real: capital asignado + cobrado − colocado histórico − gastos.
+          // No queda negativo al reinvertir ganancias en nuevos préstamos.
+          const disponible =
+            userDoc.montoAsignado + m.cobradoTotal - m.colocadoHistorico - gastosTotal;
           return (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <MetricCard
@@ -108,10 +118,10 @@ export default function Dashboard() {
           />
           <MetricCard
             label="Disponible"
-            value={formatMoney(tenantConfig.capitalTotal - m.colocado)}
+            value={formatMoney(cajaDisponible)}
             icon={PiggyBank}
-            accent="#10b981"
-            sublabel="Para nuevos préstamos"
+            accent={cajaDisponible < 0 ? '#ef4444' : '#10b981'}
+            sublabel="Caja para nuevos préstamos"
           />
         </div>
       )}
