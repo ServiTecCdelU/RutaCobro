@@ -100,7 +100,7 @@ export default function Clientes() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {error && <ErrorBanner message={error} />}
 
       <div className="flex items-center justify-between">
@@ -203,23 +203,23 @@ export default function Clientes() {
 
           {items.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {pag.items.map(({ cliente, prestamo }) => {
                   const ruta = rutas.find((r) => r.id === cliente.rutaId);
                   if (!prestamo) {
                     return (
                       <div
                         key={`sin-${cliente.id}`}
-                        className="relative bg-white rounded-2xl border border-slate-200/70 p-4 pl-5 shadow-card hover:shadow-card-hover transition-all overflow-hidden"
+                        className="relative bg-white rounded-xl sm:rounded-2xl border border-slate-200/70 p-3 pl-4 sm:p-4 sm:pl-5 shadow-card hover:shadow-card-hover transition-all overflow-hidden flex flex-col"
                       >
                         <span
                           className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full"
                           style={{ background: ruta?.color ?? '#64748b' }}
                           aria-hidden="true"
                         />
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5 mb-3">
                           <div
-                            className="w-11 h-11 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm"
+                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0 shadow-sm"
                             style={{ background: ruta?.color ?? '#64748b' }}
                           >
                             {cliente.nombre
@@ -229,33 +229,35 @@ export default function Clientes() {
                               .join('')}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-slate-900 truncate">
+                            <h4 className="font-semibold text-slate-900 truncate text-sm sm:text-base leading-tight">
                               {cliente.nombre}
                             </h4>
-                            <p className="text-xs text-slate-500">Sin préstamo activo</p>
+                            <p className="text-[11px] text-slate-500">Sin préstamo</p>
                           </div>
-                          <button
-                            onClick={() => setModalPrestamo(cliente.id)}
-                            className="px-3 py-1.5 rounded-lg bg-brand-gradient text-white text-xs font-semibold hover:opacity-95 active:scale-95 transition-all shadow-brand-sm inline-flex items-center gap-1"
-                          >
-                            <Banknote size={13} /> Prestar
-                          </button>
-                          <ActionMenu
-                            actions={[
-                              {
-                                label: 'Editar cliente',
-                                icon: Pencil,
-                                onClick: () => setModalCliente({ editar: cliente }),
-                              },
-                              {
-                                label: 'Eliminar cliente',
-                                icon: Trash2,
-                                danger: true,
-                                onClick: () => setConfirmBorrarCliente(cliente),
-                              },
-                            ]}
-                          />
+                          <div className="flex-shrink-0">
+                            <ActionMenu
+                              actions={[
+                                {
+                                  label: 'Editar cliente',
+                                  icon: Pencil,
+                                  onClick: () => setModalCliente({ editar: cliente }),
+                                },
+                                {
+                                  label: 'Eliminar cliente',
+                                  icon: Trash2,
+                                  danger: true,
+                                  onClick: () => setConfirmBorrarCliente(cliente),
+                                },
+                              ]}
+                            />
+                          </div>
                         </div>
+                        <button
+                          onClick={() => setModalPrestamo(cliente.id)}
+                          className="mt-auto w-full px-3 py-2 rounded-lg bg-brand-gradient text-white text-xs font-semibold hover:opacity-95 active:scale-95 transition-all shadow-brand-sm inline-flex items-center justify-center gap-1"
+                        >
+                          <Banknote size={13} /> Prestar
+                        </button>
                       </div>
                     );
                   }

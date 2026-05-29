@@ -62,6 +62,11 @@ export default function Header({ onNuevoPrestamo }) {
             <NavLink to="/caja" className={navLinkClass}>
               Caja
             </NavLink>
+            {puedeEditar && (
+              <NavLink to="/gastos" className={navLinkClass}>
+                Gastos
+              </NavLink>
+            )}
             {esAdmin && (
               <NavLink to="/equipo" className={navLinkClass}>
                 Equipo
@@ -165,6 +170,11 @@ export default function Header({ onNuevoPrestamo }) {
           <NavLink to="/caja" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Caja del día
           </NavLink>
+          {puedeEditar && (
+            <NavLink to="/gastos" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+              Gastos
+            </NavLink>
+          )}
           {esAdmin && (
             <NavLink to="/equipo" className={navLinkClass} onClick={() => setMenuOpen(false)}>
               <span className="inline-flex items-center gap-2">

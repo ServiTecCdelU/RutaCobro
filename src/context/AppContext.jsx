@@ -24,6 +24,9 @@ import {
   crearNota,
   eliminarNota,
   actualizarCapitalTotal,
+  crearGasto,
+  actualizarGasto,
+  eliminarGasto,
 } from '@/firebase/services';
 
 const AppContext = createContext(null);
@@ -56,6 +59,9 @@ function AppInner({ children }) {
       subscribeNotas,
       crearNota,
       eliminarNota,
+      crearGasto,
+      actualizarGasto,
+      eliminarGasto,
     }),
     [],
   );

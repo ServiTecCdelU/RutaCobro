@@ -4,7 +4,6 @@ import {
   Calendar,
   Wallet,
   AlertCircle,
-  Users,
   PiggyBank,
   FileCheck,
   Landmark,
@@ -15,7 +14,6 @@ import MetricCard from '@/components/ui/MetricCard';
 import RutaSelector from '@/components/ui/RutaSelector';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import BarChart from '@/components/dashboard/BarChart';
-import MoraChart from '@/components/dashboard/MoraChart';
 import RutaPerformance from '@/components/dashboard/RutaPerformance';
 import CuotasHoy from '@/components/dashboard/CuotasHoy';
 import Onboarding from '@/components/Onboarding';
@@ -23,10 +21,15 @@ import { formatMoney, formatFechaLarga } from '@/utils/formatters';
 import { hoy } from '@/utils/calculos';
 
 export default function Dashboard() {
-  const { rutas, clientes, prestamos, tenantConfig, esCobrador, userDoc, error, syncing } =
+  const { rutas, clientes, prestamos, gastos, tenantConfig, esCobrador, userDoc, error, syncing } =
     useApp();
   const [rutaActiva, setRutaActiva] = useState('all');
   const m = useMetricas(prestamos, clientes, rutas, rutaActiva);
+
+  const gastosTotal = (gastos ?? [])
+    .filter((g) => rutaActiva === 'all' || g.rutaId === rutaActiva)
+    .reduce((s, g) => s + (g.monto ?? 0), 0);
+  const resultadoNeto = m.gananciaRealizada - gastosTotal;
 
   // Si no hay rutas ni clientes → mostrar onboarding (pero no si hay error, para no ocultarlo)
   if (!syncing && !error && rutas.length === 0 && clientes.length === 0) {
@@ -34,7 +37,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {error && <ErrorBanner message={error} />}
 
       {/* Título + filtro */}
@@ -60,7 +63,7 @@ export default function Dashboard() {
             .reduce((sum, p) => sum + (p.monto ?? 0), 0);
           const disponible = userDoc.montoAsignado - capitalEnCalle;
           return (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <MetricCard
                 label="Mi capital"
                 value={formatMoney(userDoc.montoAsignado)}
@@ -88,7 +91,7 @@ export default function Dashboard() {
 
       {/* Capital general */}
       {!esCobrador && tenantConfig?.capitalTotal > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <MetricCard
             label="Capital inicial"
             value={formatMoney(tenantConfig.capitalTotal)}
@@ -146,28 +149,111 @@ export default function Dashboard() {
       </div>
 
       {/* Métricas secundarias */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          label="Ganancia estimada"
-          value={formatMoney(m.gananciaEstimada)}
+          label="Ganancia realizada"
+          value={formatMoney(m.gananciaRealizada)}
           icon={PiggyBank}
           accent="#f59e0b"
-          sublabel="Interés total generado"
+          sublabel="Interés ya cobrado"
         />
         <MetricCard
-          label="Clientes activos"
-          value={m.clientesActivos}
-          icon={Users}
+          label="Ganancia proyectada"
+          value={formatMoney(m.gananciaProyectada)}
+          icon={TrendingUp}
+          accent="#eab308"
+          sublabel={`ROI ${m.roi.toFixed(1)}% sobre capital`}
+        />
+        <MetricCard
+          label="Capital recuperado"
+          value={formatMoney(m.capitalRecuperado)}
+          icon={Landmark}
           accent="#06b6d4"
-          sublabel={`${m.prestamosActivos} préstamos vigentes`}
+          sublabel={`${m.clientesActivos} clientes activos`}
         />
         <MetricCard
           label="Finalizados"
           value={m.prestamosFinalizados}
           icon={FileCheck}
           accent="#22c55e"
-          sublabel="Préstamos completados"
+          sublabel={`${m.prestamosActivos} vigentes · ${m.prestamosMora} en mora`}
         />
+      </div>
+
+      {/* Proyección y mora por antigüedad */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <MetricCard
+          label="A cobrar próximos 7 días"
+          value={formatMoney(m.proyeccion7dias)}
+          icon={Calendar}
+          accent="#3b82f6"
+          sublabel="Cuotas que vencen esta semana"
+        />
+        <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/70 p-5 shadow-card">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            Mora por antigüedad
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ['1–7 días', m.moraBuckets.b1_7, '#f59e0b'],
+              ['8–30 días', m.moraBuckets.b8_30, '#f97316'],
+              ['+30 días', m.moraBuckets.b30plus, '#ef4444'],
+            ].map(([label, bucket, color]) => (
+              <div key={label} className="min-w-0">
+                <div className="text-base font-bold text-slate-900 tabular-nums truncate">
+                  {formatMoney(bucket.monto)}
+                </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: color }}
+                  />
+                  <span className="text-[11px] text-slate-500 truncate">
+                    {label} · {bucket.cant}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Resultado neto = ganancia cobrada − gastos */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900 text-white p-5 shadow-card">
+        <div
+          className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full blur-3xl opacity-40"
+          style={{ background: resultadoNeto >= 0 ? '#10b981' : '#ef4444' }}
+        />
+        <div className="relative grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/50">
+              Ganancia cobrada
+            </div>
+            <div className="text-base sm:text-2xl font-bold tabular-nums truncate text-emerald-300">
+              {formatMoney(m.gananciaRealizada)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/50">
+              Gastos
+            </div>
+            <div className="text-base sm:text-2xl font-bold tabular-nums truncate text-rose-300">
+              −{formatMoney(gastosTotal)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-white/50">
+              Resultado neto
+            </div>
+            <div
+              className={`text-base sm:text-2xl font-bold tabular-nums truncate ${
+                resultadoNeto >= 0 ? 'text-white' : 'text-rose-300'
+              }`}
+            >
+              {formatMoney(resultadoNeto)}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Gráficos */}
@@ -177,9 +263,6 @@ export default function Dashboard() {
         </div>
         <RutaPerformance porRuta={m.porRuta} />
       </div>
-
-      {/* Tendencia de mora */}
-      <MoraChart data={m.moraPorDia} />
 
       {/* Cuotas del día */}
       {prestamos.length > 0 && <CuotasHoy rutaActiva={rutaActiva} />}

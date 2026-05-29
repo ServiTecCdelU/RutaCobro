@@ -197,7 +197,7 @@ export default function Movimientos() {
     : formatFechaLarga(fechaDesde);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {(error || loadError) && <ErrorBanner message={error || loadError} />}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -334,10 +334,10 @@ export default function Movimientos() {
               return (
                 <div
                   key={m.id}
-                  className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                  className="px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-2.5 sm:gap-3 hover:bg-slate-50 transition-colors"
                 >
                   <div
-                    className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm"
                     style={{ background: m.ruta?.color ?? '#64748b' }}
                   >
                     {m.cliente?.nombre

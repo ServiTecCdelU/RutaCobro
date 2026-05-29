@@ -7,7 +7,17 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
-import { Banknote, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import {
+  Banknote,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  TrendingUp,
+  ShieldCheck,
+  Route,
+  Wallet,
+  ArrowUpRight,
+} from 'lucide-react';
 import { auth } from '@/firebase/config';
 
 const googleProvider = new GoogleAuthProvider();
@@ -26,6 +36,100 @@ const ERROR_MSGS = {
   'auth/account-exists-with-different-credential':
     'Ya existe una cuenta con ese email usando otro método',
 };
+
+const FEATURES = [
+  { icon: Route, title: 'Rutas y cobradores', desc: 'Organizá tu cartera por zonas y equipo.' },
+  { icon: Wallet, title: 'Cobro en 1 click', desc: 'Registrá cuotas y pagos al instante.' },
+  { icon: TrendingUp, title: 'Métricas en vivo', desc: 'Ganancia, mora y caja en tiempo real.' },
+];
+
+function BrandPanel() {
+  return (
+    <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-slate-950 p-12 xl:p-16 text-white">
+      {/* Capas de color */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(80% 70% at 15% 10%, rgba(99,102,241,0.45) 0%, rgba(99,102,241,0) 55%),\
+             radial-gradient(70% 70% at 100% 100%, rgba(139,92,246,0.40) 0%, rgba(139,92,246,0) 55%),\
+             radial-gradient(50% 50% at 90% 0%, rgba(56,189,248,0.20) 0%, rgba(56,189,248,0) 60%)',
+        }}
+      />
+      {/* Grilla sutil */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
+          backgroundSize: '44px 44px',
+        }}
+      />
+      <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand-500/30 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -right-20 w-[28rem] h-[28rem] rounded-full bg-violet-500/25 blur-3xl" />
+
+      {/* Marca */}
+      <div className="relative flex items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl bg-white/10 ring-1 ring-white/20 backdrop-blur flex items-center justify-center">
+          <Banknote size={22} strokeWidth={2.2} />
+        </div>
+        <span className="font-display font-bold text-lg tracking-tight">RutaCobro</span>
+      </div>
+
+      {/* Hero */}
+      <div className="relative max-w-lg">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 ring-1 ring-white/15 text-xs font-semibold text-white/80 mb-6 backdrop-blur">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          En tiempo real
+        </div>
+        <h1 className="font-display font-bold tracking-tight leading-[1.05] text-balance text-5xl xl:text-6xl">
+          Sistema de gestión de cobros
+        </h1>
+        <p className="mt-5 text-base xl:text-lg text-white/70 leading-relaxed">
+          Controlá préstamos, rutas y cobranza desde un solo lugar. Cobrá más rápido, reducí la mora
+          y mirá tus números crecer.
+        </p>
+
+        {/* Tarjeta métrica flotante (mockup) */}
+        <div className="mt-10 max-w-xs rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-xl p-5 shadow-2xl animate-[slideup_0.5s_ease-out]">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-white/60">
+              Cobrado hoy
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-400/10 px-2 py-0.5 rounded-lg">
+              <ArrowUpRight size={12} /> 12.4%
+            </span>
+          </div>
+          <div className="mt-1 text-3xl font-bold tabular-nums tracking-tight">$284.500</div>
+          <div className="mt-4 flex items-end gap-1.5 h-14">
+            {[40, 55, 35, 70, 60, 85, 100].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-t-md bg-gradient-to-t from-white/30 to-white/70"
+                style={{ height: `${h}%` }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="relative grid gap-4">
+        {FEATURES.map(({ icon: Icon, title, desc }) => (
+          <div key={title} className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-white/10 ring-1 ring-white/15 flex items-center justify-center flex-shrink-0">
+              <Icon size={18} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">{title}</div>
+              <div className="text-xs text-white/60">{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -82,9 +186,15 @@ export default function Login() {
   };
 
   const titulos = {
-    login: 'Iniciar sesión',
-    registro: 'Crear cuenta',
+    login: 'Bienvenido de nuevo',
+    registro: 'Creá tu cuenta',
     reset: 'Recuperar contraseña',
+  };
+
+  const subtitulos = {
+    login: 'Ingresá para gestionar tu cartera',
+    registro: 'Empezá a administrar tus cobros',
+    reset: 'Te enviamos un link para crear una nueva',
   };
 
   const ctaText = {
@@ -94,34 +204,34 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-slate-50">
-      {/* Fondo decorativo con gradientes */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(70% 60% at 20% 0%, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0) 60%),\
-             radial-gradient(60% 60% at 100% 100%, rgba(139,92,246,0.18) 0%, rgba(139,92,246,0) 55%)',
-        }}
-      />
-      <div className="pointer-events-none absolute -top-20 -left-20 w-72 h-72 rounded-full bg-brand-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -right-20 w-80 h-80 rounded-full bg-violet-400/20 blur-3xl" />
+    <div className="min-h-screen grid lg:grid-cols-2 bg-slate-50 dark:bg-slate-950">
+      <BrandPanel />
 
-      <div className="relative w-full max-w-sm animate-[fadein_0.4s_ease-out]">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-brand-gradient flex items-center justify-center mb-4 shadow-brand">
-            <Banknote size={30} className="text-white" strokeWidth={2} />
+      {/* Panel de formulario */}
+      <div className="relative flex items-center justify-center p-6 sm:p-10 overflow-hidden">
+        {/* Fondo decorativo solo visible en mobile/cuando no hay panel */}
+        <div
+          className="pointer-events-none absolute inset-0 lg:hidden"
+          style={{
+            background:
+              'radial-gradient(70% 50% at 20% 0%, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0) 60%),\
+               radial-gradient(60% 50% at 100% 100%, rgba(139,92,246,0.14) 0%, rgba(139,92,246,0) 55%)',
+          }}
+        />
+
+        <div className="relative w-full max-w-sm animate-[fadein_0.4s_ease-out]">
+          {/* Logo (mobile) */}
+          <div className="flex flex-col items-center mb-8 lg:hidden">
+            <div className="w-14 h-14 rounded-2xl bg-brand-gradient flex items-center justify-center mb-3 shadow-brand">
+              <Banknote size={26} className="text-white" strokeWidth={2.2} />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+              RutaCobro
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">Sistema de gestión de cobros</p>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 font-display tracking-tight">
-            RutaCobro
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">Gestión de cartera de préstamos</p>
-        </div>
 
-        {/* Card */}
-        <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-white/60 ring-1 ring-slate-900/5 p-6 shadow-elevated">
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-1">
             {modo === 'reset' && (
               <button
                 onClick={() => {
@@ -129,23 +239,20 @@ export default function Login() {
                   resetFeedback();
                 }}
                 aria-label="Volver al login"
-                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-600 transition-colors"
+                className="w-8 h-8 -ml-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors"
               >
                 <ArrowLeft size={16} />
               </button>
             )}
-            <h2 className="text-lg font-bold text-slate-900">{titulos[modo]}</h2>
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display tracking-tight">
+              {titulos[modo]}
+            </h2>
           </div>
-
-          {modo === 'reset' && (
-            <p className="text-sm text-slate-500 mb-4">
-              Ingresá tu email y te mandamos un link para crear una nueva contraseña.
-            </p>
-          )}
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-7">{subtitulos[modo]}</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2 block">
                 Email
               </label>
               <input
@@ -154,6 +261,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
                 required
+                autoComplete="email"
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
               />
             </div>
@@ -161,7 +269,7 @@ export default function Login() {
             {modo !== 'reset' && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Contraseña
                   </label>
                   {modo === 'login' && (
@@ -184,6 +292,7 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
                     className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
                   />
                   <button
@@ -221,11 +330,11 @@ export default function Login() {
           {modo !== 'reset' && (
             <>
               <div className="flex items-center gap-3 my-5">
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                   o
                 </span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700" />
               </div>
 
               <button
@@ -258,7 +367,7 @@ export default function Login() {
           )}
 
           {modo !== 'reset' && (
-            <div className="mt-5 text-center text-sm text-slate-500">
+            <div className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
               {modo === 'login' ? '¿No tenés cuenta?' : '¿Ya tenés cuenta?'}{' '}
               <button
                 onClick={() => {
@@ -271,6 +380,11 @@ export default function Login() {
               </button>
             </div>
           )}
+
+          <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+            <ShieldCheck size={13} />
+            Conexión segura · Tus datos están cifrados
+          </div>
         </div>
       </div>
     </div>

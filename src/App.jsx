@@ -9,6 +9,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Clientes = lazy(() => import('@/pages/Clientes'));
 const Rutas = lazy(() => import('@/pages/Rutas'));
 const Movimientos = lazy(() => import('@/pages/Movimientos'));
+const Gastos = lazy(() => import('@/pages/Gastos'));
 const Equipo = lazy(() => import('@/pages/Equipo'));
 const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'));
 const Configuracion = lazy(() => import('@/pages/Configuracion'));
@@ -107,6 +108,16 @@ export default function App() {
                     <ErrorBoundary>
                       <LazyPage>
                         <Movimientos />
+                      </LazyPage>
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="gastos"
+                  element={
+                    <ErrorBoundary>
+                      <LazyPage>
+                        <Gastos />
                       </LazyPage>
                     </ErrorBoundary>
                   }

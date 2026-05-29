@@ -17,18 +17,18 @@ export default function Rutas() {
 
   const stats = useMemo(() => {
     const clientesPorRuta = new Map();
-    clientes.forEach(c => {
+    clientes.forEach((c) => {
       if (!clientesPorRuta.has(c.rutaId)) clientesPorRuta.set(c.rutaId, []);
       clientesPorRuta.get(c.rutaId).push(c);
     });
     const clienteIdsPorRuta = new Map(
-      [...clientesPorRuta.entries()].map(([rid, list]) => [rid, new Set(list.map(c => c.id))])
+      [...clientesPorRuta.entries()].map(([rid, list]) => [rid, new Set(list.map((c) => c.id))]),
     );
 
-    return rutas.map(r => {
+    return rutas.map((r) => {
       const clis = clientesPorRuta.get(r.id) ?? [];
       const clienteIds = clienteIdsPorRuta.get(r.id) ?? new Set();
-      const pres = prestamos.filter(p => clienteIds.has(p.clienteId));
+      const pres = prestamos.filter((p) => clienteIds.has(p.clienteId));
       let cobrado = 0;
       let pendiente = 0;
       for (const p of pres) {
@@ -59,12 +59,14 @@ export default function Rutas() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {error && <ErrorBanner message={error} />}
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-display">Rutas</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-display">
+            Rutas
+          </h1>
           <p className="text-sm text-slate-500 mt-1 tabular-nums">{rutas.length} rutas activas</p>
         </div>
         <button
@@ -90,37 +92,59 @@ export default function Rutas() {
           }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map(r => (
-            <div key={r.id} className="relative bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card hover:shadow-card-hover hover:border-slate-300 transition-all overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {stats.map((r) => (
+            <div
+              key={r.id}
+              className="relative bg-white rounded-xl sm:rounded-2xl border border-slate-200/70 p-3 sm:p-5 shadow-card hover:shadow-card-hover hover:border-slate-300 transition-all overflow-hidden"
+            >
               <div
                 className="absolute top-0 inset-x-0 h-1"
                 style={{ background: `linear-gradient(90deg, ${r.color}, ${r.color}88)` }}
                 aria-hidden="true"
               />
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0 shadow-sm" style={{ background: r.color }}>
+              <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center text-white text-base sm:text-lg font-bold flex-shrink-0 shadow-sm"
+                  style={{ background: r.color }}
+                >
                   {r.nombre[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-slate-900 truncate">{r.nombre}</div>
+                  <div className="font-bold text-slate-900 truncate text-sm sm:text-base">
+                    {r.nombre}
+                  </div>
                   <div className="text-xs text-slate-500 truncate">{r.cobrador}</div>
                 </div>
-                <ActionMenu actions={[
-                  { label: 'Editar', icon: Pencil, onClick: () => setModal({ editar: r }) },
-                  { label: 'Eliminar', icon: Trash2, danger: true, onClick: () => intentarBorrar(r) },
-                ]} />
+                <ActionMenu
+                  actions={[
+                    { label: 'Editar', icon: Pencil, onClick: () => setModal({ editar: r }) },
+                    {
+                      label: 'Eliminar',
+                      icon: Trash2,
+                      danger: true,
+                      onClick: () => intentarBorrar(r),
+                    },
+                  ]}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {[
                   ['Clientes', r.clientes],
                   ['Préstamos', r.prestamos],
                   ['Cobrado', formatMoney(r.cobrado)],
                   ['Pendiente', formatMoney(r.pendiente)],
                 ].map(([label, val]) => (
-                  <div key={label} className="bg-slate-50/80 rounded-xl p-3 ring-1 ring-slate-100">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">{label}</div>
-                    <div className="text-sm font-bold text-slate-900 tabular-nums">{val}</div>
+                  <div
+                    key={label}
+                    className="bg-slate-50/80 rounded-lg sm:rounded-xl p-2 sm:p-3 ring-1 ring-slate-100 min-w-0"
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5 truncate">
+                      {label}
+                    </div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-900 tabular-nums truncate">
+                      {val}
+                    </div>
                   </div>
                 ))}
               </div>

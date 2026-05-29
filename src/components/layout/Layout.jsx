@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Route, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, Route, Receipt, TrendingDown } from 'lucide-react';
 import Header from './Header';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import { useApp } from '@/context/AppContext';
 
 export default function Layout({ children }) {
   const [modalNuevo, setModalNuevo] = useState(false);
-  const { syncing, esAdmin } = useApp();
+  const { syncing, esAdmin, puedeEditar } = useApp();
   const tabs = [
     { to: '/', icon: LayoutDashboard, label: 'Tablero', end: true },
     { to: '/clientes', icon: Users, label: 'Clientes' },
     { to: '/caja', icon: Receipt, label: 'Caja' },
+    ...(puedeEditar ? [{ to: '/gastos', icon: TrendingDown, label: 'Gastos' }] : []),
     ...(esAdmin ? [{ to: '/rutas', icon: Route, label: 'Rutas' }] : []),
   ];
 

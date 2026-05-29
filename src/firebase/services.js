@@ -414,6 +414,46 @@ export const crearNota = ({ clienteId, texto, autor }) =>
 
 export const eliminarNota = (id) => deleteDoc(ref('notas', id));
 
+// ── Gastos ───────────────────────────────────────────────────────────────────
+// Modelo: gastos/{id} → { monto, categoria, descripcion, fecha (YYYY-MM-DD),
+//                         rutaId, autor, creadoEn }. Siempre asociado a una ruta.
+
+export const subscribeGastos = (cb, onError, { rutaId } = {}) => {
+  const constraints = [orderBy('fecha', 'desc')];
+  if (rutaId) constraints.unshift(where('rutaId', '==', rutaId));
+  return listen(query(col('gastos'), ...constraints), cb, onError);
+};
+
+export const subscribeGastosPorRango = (desde, hasta, cb, onError) =>
+  listen(
+    query(
+      col('gastos'),
+      where('fecha', '>=', desde),
+      where('fecha', '<=', hasta),
+      orderBy('fecha', 'desc'),
+    ),
+    cb,
+    onError,
+  );
+
+export const crearGasto = ({ monto, categoria, descripcion, fecha, rutaId, autor }) => {
+  if (!(monto > 0)) throw new Error('El monto debe ser mayor a 0');
+  if (!rutaId) throw new Error('Seleccioná una ruta');
+  return addDoc(col('gastos'), {
+    monto,
+    categoria: categoria ?? 'varios',
+    descripcion: descripcion?.trim() ?? '',
+    fecha: fecha ?? hoy(),
+    rutaId,
+    autor: autor ?? '',
+    creadoEn: serverTimestamp(),
+  });
+};
+
+export const actualizarGasto = (id, data) => updateDoc(ref('gastos', id), data);
+
+export const eliminarGasto = (id) => deleteDoc(ref('gastos', id));
+
 export const revertirCuota = async (prestamoId, nroCuota) => {
   const prestamoRef = ref('prestamos', prestamoId);
   const movsQuery = query(

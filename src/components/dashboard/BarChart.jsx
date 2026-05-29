@@ -14,8 +14,9 @@ export default memo(function BarChart({ data }) {
   });
 
   const total = data.reduce((s, v) => s + v, 0);
+  // Tendencia: primeros 3 días vs últimos 3 (sin saltear ninguno arbitrariamente)
   const mitadAnterior = data.slice(0, 3).reduce((s, v) => s + v, 0);
-  const mitadActual = data.slice(4).reduce((s, v) => s + v, 0);
+  const mitadActual = data.slice(-3).reduce((s, v) => s + v, 0);
   const cambio = mitadAnterior > 0 ? ((mitadActual - mitadAnterior) / mitadAnterior) * 100 : null;
   const positivo = cambio !== null && cambio >= 0;
 

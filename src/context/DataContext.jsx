@@ -4,6 +4,7 @@ import {
   subscribeClientes,
   subscribePrestamos,
   subscribeNegocioConfig,
+  subscribeGastos,
 } from '@/firebase/services';
 import { useAuth } from './AuthContext';
 
@@ -16,6 +17,7 @@ export function DataProvider({ children }) {
   const [rutas, setRutas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [prestamos, setPrestamos] = useState([]);
+  const [gastos, setGastos] = useState([]);
   const [negocioConfig, setNegocioConfig] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [dataError, setDataError] = useState(null);
@@ -25,6 +27,7 @@ export function DataProvider({ children }) {
       setRutas([]);
       setClientes([]);
       setPrestamos([]);
+      setGastos([]);
       setSyncing(false);
       setDataError(null);
       return;
@@ -90,6 +93,15 @@ export function DataProvider({ children }) {
           done();
         }
       }, handleError('prestamos')),
+      subscribeGastos(
+        (d) => {
+          if (!cancelled) setGastos(d);
+        },
+        (err) => {
+          if (err.code !== 'permission-denied') console.error('[data] gastos', err.code);
+        },
+        esCobrador && rutaIdAsignada ? { rutaId: rutaIdAsignada } : {},
+      ),
     ];
 
     const timeout = setTimeout(() => {
@@ -127,6 +139,7 @@ export function DataProvider({ children }) {
       rutas: rutasVisibles,
       clientes: clientesVisibles,
       prestamos: prestamosVisibles,
+      gastos,
       prestamosAll: prestamos,
       rutasAll: rutas,
       tenantConfig: negocioConfig,
@@ -137,6 +150,7 @@ export function DataProvider({ children }) {
       rutasVisibles,
       clientesVisibles,
       prestamosVisibles,
+      gastos,
       prestamos,
       rutas,
       negocioConfig,

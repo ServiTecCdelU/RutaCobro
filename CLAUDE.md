@@ -59,7 +59,18 @@ usuarios/{uid}              ← membresía (rol, rutaId, montoAsignado, email)
 invitaciones/{token}        ← email, rol, rutaId, montoAsignado, creadoEn
 
 notas/{notaId}              ← clienteId, texto, autor, creadoEn
+
+gastos/{gastoId}            ← monto, categoria (fija), descripcion, fecha (YYYY-MM-DD),
+                              rutaId (siempre asociado a ruta), autor, creadoEn
 ```
+
+## Control de gastos
+Cada gasto se asocia **siempre a una ruta**. Categorías **fijas** (`src/utils/gastos.js`):
+combustible, sueldos/comisiones, alquiler, impuestos, mantenimiento, varios. Admin y
+cobradores pueden registrar gastos (el cobrador queda fijado a su ruta). La página `/gastos`
+usa `subscribeGastosPorRango`; el `DataContext` mantiene una suscripción global (filtrada por
+ruta para cobradores) para calcular el **resultado neto** en el Dashboard
+(`gananciaRealizada − gastos`).
 
 ## Modelo de negocio único (sin multi-tenancy)
 Un solo negocio por instalación. El primer usuario que se registra se convierte en admin. Los cobradores se unen vía invitación. Usuarios nuevos sin invitación son rechazados. `config/negocio` almacena `adminUid` y `capitalTotal`.
