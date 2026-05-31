@@ -25,6 +25,7 @@ export default function Equipo() {
     rutasAll,
     prestamosAll,
     clientes,
+    gastos,
     tenantConfig,
     error,
     subscribeMiembros,
@@ -85,15 +86,44 @@ export default function Equipo() {
     .filter((p) => p.estado === 'activo')
     .reduce((sum, p) => sum + (p.monto ?? 0), 0);
 
-  // Capital disponible real = lo que puse - lo que ya está prestado
-  const capitalDisponibleReal = capitalTotal - capitalEnCalleTotal;
+  // Monto cobrado de una cuota, tolerando datos viejos sin `pagado`.
+  const pagadoDe = (c) => c.pagado ?? (c.pagada ? c.monto : 0);
 
-  // Calcular capital en calle por ruta (para cada cobrador)
+  // Caja real (flujo de efectivo): capital + todo lo cobrado − todo lo prestado
+  // (histórico) − gastos. Misma fórmula que el Dashboard; no queda negativa al
+  // reinvertir ganancias en nuevos préstamos.
+  const cobradoTotalGeneral = (prestamosAll ?? []).reduce(
+    (sum, p) => sum + (p.cuotasDetalle ?? []).reduce((s, c) => s + pagadoDe(c), 0),
+    0,
+  );
+  const colocadoHistoricoTotal = (prestamosAll ?? []).reduce((sum, p) => sum + (p.monto ?? 0), 0);
+  const gastosTotalGeneral = (gastos ?? []).reduce((sum, g) => sum + (g.monto ?? 0), 0);
+  const capitalDisponibleReal =
+    capitalTotal + cobradoTotalGeneral - colocadoHistoricoTotal - gastosTotalGeneral;
+
+  // Capital en calle por ruta (para el detalle de cada cobrador)
   const getCapitalEnCalle = (rutaId) => {
     if (!rutaId || !prestamosAll) return 0;
     return prestamosAll
       .filter((p) => p.estado === 'activo' && clienteRutaMap.get(p.clienteId) === rutaId)
       .reduce((sum, p) => sum + (p.monto ?? 0), 0);
+  };
+
+  // Caja real por ruta: asignado + cobrado − colocado histórico − gastos de la ruta.
+  const getCajaDisponible = (rutaId, asignado) => {
+    if (!rutaId) return asignado;
+    const prestamosRuta = (prestamosAll ?? []).filter(
+      (p) => clienteRutaMap.get(p.clienteId) === rutaId,
+    );
+    const cobrado = prestamosRuta.reduce(
+      (sum, p) => sum + (p.cuotasDetalle ?? []).reduce((s, c) => s + pagadoDe(c), 0),
+      0,
+    );
+    const colocado = prestamosRuta.reduce((sum, p) => sum + (p.monto ?? 0), 0);
+    const gastosRuta = (gastos ?? [])
+      .filter((g) => g.rutaId === rutaId)
+      .reduce((sum, g) => sum + (g.monto ?? 0), 0);
+    return asignado + cobrado - colocado - gastosRuta;
   };
 
   // Total asignado a cobradores
@@ -483,7 +513,9 @@ export default function Equipo() {
               const esAdminMiembro = m.rol === 'admin';
               const capitalEnCalle = !esAdminMiembro ? getCapitalEnCalle(m.rutaId) : 0;
               const montoAsig = m.montoAsignado ?? 0;
-              const disponibleMiembro = montoAsig - capitalEnCalle;
+              const disponibleMiembro = !esAdminMiembro
+                ? getCajaDisponible(m.rutaId, montoAsig)
+                : 0;
 
               return (
                 <div key={m.id} className="p-3 rounded-xl border border-slate-200">

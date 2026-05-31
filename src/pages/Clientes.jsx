@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Search, Filter, UserPlus, Users, Pencil, Trash2, Banknote } from 'lucide-react';
+import { Search, Filter, UserPlus, Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { diasDeAtraso } from '@/utils/calculos';
 import { useToast } from '@/components/ui/Toast';
@@ -9,7 +9,6 @@ import Paginacion from '@/components/ui/Paginacion';
 import RutaSelector from '@/components/ui/RutaSelector';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import EmptyState from '@/components/ui/EmptyState';
-import ActionMenu from '@/components/ui/ActionMenu';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ClienteCard from '@/components/clientes/ClienteCard';
 import ModalDetalle from '@/components/modals/ModalDetalle';
@@ -203,71 +202,17 @@ export default function Clientes() {
 
           {items.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="bg-white rounded-2xl border border-slate-200/70 shadow-card divide-y divide-slate-100 overflow-hidden">
                 {pag.items.map(({ cliente, prestamo }) => {
                   const ruta = rutas.find((r) => r.id === cliente.rutaId);
-                  if (!prestamo) {
-                    return (
-                      <div
-                        key={`sin-${cliente.id}`}
-                        className="relative bg-white rounded-xl sm:rounded-2xl border border-slate-200/70 p-3 pl-4 sm:p-4 sm:pl-5 shadow-card hover:shadow-card-hover transition-all overflow-hidden flex flex-col"
-                      >
-                        <span
-                          className="absolute left-0 top-3 bottom-3 w-1 rounded-r-full"
-                          style={{ background: ruta?.color ?? '#64748b' }}
-                          aria-hidden="true"
-                        />
-                        <div className="flex items-center gap-2.5 mb-3">
-                          <div
-                            className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0 shadow-sm"
-                            style={{ background: ruta?.color ?? '#64748b' }}
-                          >
-                            {cliente.nombre
-                              .split(' ')
-                              .map((n) => n[0])
-                              .slice(0, 2)
-                              .join('')}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-slate-900 truncate text-sm sm:text-base leading-tight">
-                              {cliente.nombre}
-                            </h4>
-                            <p className="text-[11px] text-slate-500">Sin préstamo</p>
-                          </div>
-                          <div className="flex-shrink-0">
-                            <ActionMenu
-                              actions={[
-                                {
-                                  label: 'Editar cliente',
-                                  icon: Pencil,
-                                  onClick: () => setModalCliente({ editar: cliente }),
-                                },
-                                {
-                                  label: 'Eliminar cliente',
-                                  icon: Trash2,
-                                  danger: true,
-                                  onClick: () => setConfirmBorrarCliente(cliente),
-                                },
-                              ]}
-                            />
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setModalPrestamo(cliente.id)}
-                          className="mt-auto w-full px-3 py-2 rounded-lg bg-brand-gradient text-white text-xs font-semibold hover:opacity-95 active:scale-95 transition-all shadow-brand-sm inline-flex items-center justify-center gap-1"
-                        >
-                          <Banknote size={13} /> Prestar
-                        </button>
-                      </div>
-                    );
-                  }
                   return (
                     <ClienteCard
-                      key={prestamo.id}
+                      key={prestamo ? prestamo.id : `sin-${cliente.id}`}
                       cliente={cliente}
                       prestamo={prestamo}
                       ruta={ruta}
                       onPagar={handleCobrar}
+                      onPrestar={setModalPrestamo}
                       onDetalle={setModalDetalle}
                       onEditar={(c) => setModalCliente({ editar: c })}
                       onEliminar={setConfirmBorrarCliente}
