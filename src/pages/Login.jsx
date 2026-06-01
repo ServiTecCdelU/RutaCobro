@@ -206,7 +206,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-slate-50 dark:bg-slate-950">
+    <div className="dark min-h-screen grid lg:grid-cols-2 bg-slate-950">
       <BrandPanel />
 
       {/* Panel de formulario */}
@@ -264,7 +264,7 @@ export default function Login() {
                 placeholder="tu@email.com"
                 required
                 autoComplete="email"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
               />
             </div>
 
@@ -281,7 +281,7 @@ export default function Login() {
                         setModo('reset');
                         resetFeedback();
                       }}
-                      className="text-xs font-semibold text-brand-700 hover:text-brand-900 hover:underline"
+                      className="text-xs font-semibold text-brand-700 hover:text-brand-900 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
                     >
                       ¿La olvidaste?
                     </button>
@@ -295,13 +295,13 @@ export default function Login() {
                     placeholder="••••••••"
                     required
                     autoComplete={modo === 'login' ? 'current-password' : 'new-password'}
-                    className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+                    className="w-full px-4 py-3 pr-11 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPass((v) => !v)}
                     aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   >
                     {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
@@ -310,12 +310,12 @@ export default function Login() {
             )}
 
             {error && (
-              <div className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+              <div className="px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300">
                 {error}
               </div>
             )}
             {success && (
-              <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+              <div className="px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-300">
                 {success}
               </div>
             )}
@@ -343,7 +343,7 @@ export default function Login() {
                 type="button"
                 onClick={handleGoogle}
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-colors flex items-center justify-center gap-3"
+                className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-colors flex items-center justify-center gap-3 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-600"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                   <path
@@ -376,7 +376,7 @@ export default function Login() {
                   setModo((m) => (m === 'login' ? 'registro' : 'login'));
                   resetFeedback();
                 }}
-                className="font-semibold text-brand-700 hover:text-brand-900 hover:underline"
+                className="font-semibold text-brand-700 hover:text-brand-900 hover:underline dark:text-brand-400 dark:hover:text-brand-300"
               >
                 {modo === 'login' ? 'Crear cuenta' : 'Iniciá sesión'}
               </button>
