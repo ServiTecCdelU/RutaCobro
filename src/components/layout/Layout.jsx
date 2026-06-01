@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Route, Receipt, TrendingDown } from 'lucide-rea
 import Header from './Header';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import { useApp } from '@/context/AppContext';
+import { servitecWhatsApp } from '@/utils/servitec';
 
 export default function Layout({ children }) {
   const [modalNuevo, setModalNuevo] = useState(false);
@@ -37,6 +38,25 @@ export default function Layout({ children }) {
 
       <main className="relative flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-10">
         {children}
+
+        {/* Crédito SERVITEC */}
+        <footer className="mt-8 pt-5 border-t border-slate-200/70 dark:border-slate-800 text-center text-[11px] text-slate-400">
+          RutaCobro · Desarrollado por{' '}
+          <span className="font-semibold text-slate-500 dark:text-slate-400">SERVITEC</span>
+          {servitecWhatsApp() && (
+            <>
+              {' · '}
+              <a
+                href={servitecWhatsApp()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+              >
+                ¿Querés uno? Consultá por WhatsApp
+              </a>
+            </>
+          )}
+        </footer>
       </main>
 
       {/* Bottom nav — solo mobile */}

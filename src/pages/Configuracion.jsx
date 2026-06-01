@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Settings, Building2, Palette, Save } from 'lucide-react';
+import { Settings, Building2, Palette, Save, MessageCircle, Megaphone } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
+import { SERVITEC, servitecWhatsApp } from '@/utils/servitec';
 
 export default function Configuracion() {
   const { user } = useApp();
@@ -82,6 +83,35 @@ export default function Configuracion() {
         >
           <Save size={16} /> Guardar cambios
         </button>
+      </div>
+
+      {/* SERVITEC — recomendá el sistema */}
+      <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card overflow-hidden">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <Megaphone size={18} />
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900">Recomendá RutaCobro</h2>
+            <p className="text-xs text-slate-500">¿Conocés a alguien que presta plata?</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 mb-4">
+          Este sistema lo desarrolla{' '}
+          <span className="font-bold text-slate-900">{SERVITEC.nombre}</span>. Si conocés a alguien
+          que necesite gestionar su cartera de préstamos, pasale el contacto y nos consulta sin
+          compromiso.
+        </p>
+        {servitecWhatsApp() && (
+          <a
+            href={servitecWhatsApp()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 active:scale-[0.98] shadow-sm transition-all"
+          >
+            <MessageCircle size={16} /> Contactar a SERVITEC · {SERVITEC.telDisplay}
+          </a>
+        )}
       </div>
 
       {/* Apariencia */}

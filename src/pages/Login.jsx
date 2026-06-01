@@ -17,8 +17,10 @@ import {
   Route,
   Wallet,
   ArrowUpRight,
+  MessageCircle,
 } from 'lucide-react';
 import { auth } from '@/firebase/config';
+import { servitecWhatsApp } from '@/utils/servitec';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -384,6 +386,27 @@ export default function Login() {
           <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-400">
             <ShieldCheck size={13} />
             Conexión segura · Tus datos están cifrados
+          </div>
+
+          {/* Crédito SERVITEC */}
+          <div className="mt-6 pt-5 border-t border-slate-200/70 dark:border-slate-800 text-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Desarrollado por{' '}
+              <span className="font-bold text-slate-700 dark:text-slate-200">SERVITEC</span>
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5 mb-3">
+              ¿Querés un sistema así para tu negocio?
+            </p>
+            {servitecWhatsApp() && (
+              <a
+                href={servitecWhatsApp()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 active:scale-[0.98] transition-all shadow-sm"
+              >
+                <MessageCircle size={15} /> Consultar por WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </div>
