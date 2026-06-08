@@ -3,3 +3,9 @@ dist
 .env
 .env.local
 .DS_Store
+
+# artefactos de preview del comprobante (dev, no commitear)
+comprobante-ejemplo.pdf
+comprobante-preview.png
+verif.png
+gen-comprobante-preview.*

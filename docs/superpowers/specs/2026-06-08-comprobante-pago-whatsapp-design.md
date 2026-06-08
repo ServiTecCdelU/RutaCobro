@@ -51,7 +51,11 @@ Lógica pura + armado del PDF.
 - `construirComprobantePago({ cliente, prestamo, ruta, resultado })` →
   `{ file, mensaje, nombreArchivo }`
 - Importa `jsPDF` dinámicamente (igual patrón que `Movimientos.jsx`, se carga solo al
-  usar). **Sin** `jspdf-autotable`: layout a medida.
+  usar). **Sin** `jspdf-autotable` y **sin** `html2canvas`: dibujado vectorial a medida
+  (texto, líneas, rectángulos), lo que da un PDF liviano, nítido y con texto seleccionable
+  — importante porque se comparte por WhatsApp desde el celular.
+- El dibujado vectorial ya está validado en un script de preview y rasterizado para
+  comparar contra el diseño aprobado; se porta tal cual al módulo.
 - `mensaje`: texto de WhatsApp pre-armado, p. ej.:
   *"Hola {primerNombre}, adjunto tu comprobante de pago de la cuota X/Y por $… ¡Gracias!"*
 - `nombreArchivo`: p. ej. `comprobante-{apellidoOClienteSlug}-cuota-X.pdf`.
@@ -90,19 +94,33 @@ Cablear el botón.
   actualizado del estado (vía ref o relectura) y usar `resultado` para los datos
   autoritativos de la cuota/progreso.
 
-## Diseño del PDF (A5 portrait, tipo recibo)
+## Diseño del PDF (A5 portrait, estilo factura/recibo profesional)
 
-- **Banda superior** con el color de la ruta como acento: "RutaCobro · Comprobante de pago".
-- Sello **"PAGADO"** con check vectorial + **N° de comprobante** (ID del movimiento) y
-  fecha de pago.
-- **Cliente:** nombre, DNI, teléfono, dirección, ruta.
-- **Préstamo:** monto, interés, total a devolver, cantidad de cuotas, fecha de inicio.
-- **Caja destacada — Cuota abonada:** N° X/Y · monto · fecha de pago.
-- **Progreso:** barra (pagadas/total), saldo pendiente y próxima cuota (fecha + monto).
-  Si finalizó: leyenda "Préstamo finalizado ✓".
-- **Pie:** contacto SERVITEC (de `src/utils/servitec.js`) + leyenda.
-- Tipografía Helvetica (default de jsPDF). Uso de `roundedRect` para los paneles.
-- Colores monetarios y fechas con `formatMoney` / `formatFecha` de `@/utils/formatters`.
+Estética tipo factura corporativa (referencia: invoice de Stripe). Diseño aprobado y
+verificado vía rasterizado del PDF vectorial.
+
+- **Encabezado:** monograma "RC" (cuadrado redondeado, fondo slate-900) + marca
+  "RutaCobro / Sistema de gestión de cobros" a la izquierda; a la derecha el bloque de
+  documento: "COMPROBANTE DE PAGO" (label tracked), "N° RC-XXXXXXXX" (ID del movimiento,
+  en monoespaciado/Courier) y la fecha de pago larga. Debajo, una **regla corta con el
+  color de la ruta** como acento.
+- **Cliente:** label "CLIENTE" + chip-pill con punto del color de la ruta y su nombre a la
+  derecha; nombre del cliente en grande; grilla con DNI, Teléfono y Dirección.
+- **Detalle del préstamo:** filas tipo línea de factura (clave a la izquierda en gris,
+  valor en negrita a la derecha) separadas por hairlines: Monto otorgado, Interés,
+  Total a devolver, Plan (N cuotas semanales), Inicio.
+- **Caja destacada — Cuota abonada:** panel gris con **barra de acento lateral** del color
+  de la ruta; a la izquierda "CUOTA ABONADA", "Cuota X de Y" y "Pagada el {fecha}"; a la
+  derecha "TOTAL ABONADO" y el monto grande.
+- **Progreso:** "Progreso del préstamo" + "Saldo pendiente {monto}"; barra de progreso
+  (pagadas/total) con el color de la ruta; línea "X de Y cuotas pagadas · Próxima cuota:
+  {fecha} · {monto}" (o "Préstamo finalizado" si corresponde).
+- **Pie:** hairline + "Documento sin valor fiscal · Comprobante interno de pago" a la
+  izquierda y "SERVITEC · +54 9 3442 64-6670" (tel en color de acento) a la derecha.
+- Paleta sobria: ink `#0f172a`, muted `#64748b`, faint `#94a3b8`, hairline `#e4e6ee`,
+  panel `#f7f8fb`; **único acento = `ruta.color`**. Tipografía Helvetica (Courier para el
+  N° de comprobante). `roundedRect` para paneles/chips/barras.
+- Montos con `formatMoney` y fechas con los formatters de `@/utils/formatters`.
 
 ## Tests
 
