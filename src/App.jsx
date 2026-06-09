@@ -10,6 +10,7 @@ const Cobranza = lazy(() => import('@/pages/Cobranza'));
 const Clientes = lazy(() => import('@/pages/Clientes'));
 const Rutas = lazy(() => import('@/pages/Rutas'));
 const Movimientos = lazy(() => import('@/pages/Movimientos'));
+const Cierre = lazy(() => import('@/pages/Cierre'));
 const Gastos = lazy(() => import('@/pages/Gastos'));
 const Equipo = lazy(() => import('@/pages/Equipo'));
 const AceptarInvitacion = lazy(() => import('@/pages/AceptarInvitacion'));
@@ -131,6 +132,18 @@ export default function App() {
                         <Gastos />
                       </LazyPage>
                     </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="cierre"
+                  element={
+                    <AdminOnly>
+                      <ErrorBoundary>
+                        <LazyPage>
+                          <Cierre />
+                        </LazyPage>
+                      </ErrorBoundary>
+                    </AdminOnly>
                   }
                 />
                 <Route
