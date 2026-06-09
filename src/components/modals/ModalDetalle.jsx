@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, CheckCircle2, Undo2, Wallet, Banknote, FileText } from 'lucide-react';
 import { formatMoney, formatFecha } from '@/utils/formatters';
-import { diasDeAtraso } from '@/utils/calculos';
+import { diasDeAtraso, frecuenciaPlural } from '@/utils/calculos';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useCobrar } from '@/hooks/useCobrar';
@@ -72,7 +72,8 @@ export default function ModalDetalle({ prestamoId, onClose }) {
                 <h3 className="font-bold text-slate-900 text-lg">{cliente?.nombre}</h3>
                 <p className="text-xs text-slate-500">
                   {cliente?.dni ? `DNI ${cliente.dni} · ` : ''}
-                  {ruta?.nombre ?? 'Sin ruta'}
+                  {ruta?.nombre ?? 'Sin ruta'} · {prestamo.cuotas} cuotas{' '}
+                  {frecuenciaPlural(prestamo.frecuenciaDias)}
                 </p>
               </div>
             </div>

@@ -44,3 +44,22 @@ export const generarCuotas = (monto, interes, cantCuotas, fechaInicio, frecuenci
 
 export const proximaCuotaPendiente = (prestamo) =>
   prestamo?.cuotasDetalle?.find((c) => !c.pagada) ?? null;
+
+// Frecuencias de pago conocidas (en días). Los préstamos viejos sin `frecuenciaDias`
+// se tratan como semanales (7), que era el comportamiento histórico.
+const FRECUENCIAS = {
+  1: { singular: 'Diaria', plural: 'diarias' },
+  7: { singular: 'Semanal', plural: 'semanales' },
+  15: { singular: 'Quincenal', plural: 'quincenales' },
+  30: { singular: 'Mensual', plural: 'mensuales' },
+};
+
+export const frecuenciaNombre = (dias) => {
+  const d = dias ?? 7;
+  return FRECUENCIAS[d]?.singular ?? `Cada ${d} días`;
+};
+
+export const frecuenciaPlural = (dias) => {
+  const d = dias ?? 7;
+  return FRECUENCIAS[d]?.plural ?? `cada ${d} días`;
+};

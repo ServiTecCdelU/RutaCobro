@@ -1,5 +1,5 @@
 import { formatMoney } from '@/utils/formatters';
-import { hoy } from '@/utils/calculos';
+import { hoy, frecuenciaPlural } from '@/utils/calculos';
 
 const RUTA_COLOR_DEFAULT = '#4f46e5';
 
@@ -195,7 +195,7 @@ const dibujar = (doc, { cliente, prestamo, ruta, resultado, fechaPago }) => {
     ['Monto otorgado', formatMoney(prestamo?.monto)],
     ['Interés', (prestamo?.interes ?? 0) + '%'],
     ['Total a devolver', formatMoney(totalDevolver)],
-    ['Plan', `${prestamo?.cuotas ?? '—'} cuotas semanales`],
+    ['Plan', `${prestamo?.cuotas ?? '—'} cuotas ${frecuenciaPlural(prestamo?.frecuenciaDias)}`],
     ['Inicio', prestamo?.fechaInicio ? fechaLarga(prestamo.fechaInicio) : '—'],
   ];
   rows.forEach(([k, v]) => {

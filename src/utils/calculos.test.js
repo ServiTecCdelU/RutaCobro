@@ -6,6 +6,8 @@ import {
   diasDeAtraso,
   generarCuotas,
   proximaCuotaPendiente,
+  frecuenciaNombre,
+  frecuenciaPlural,
 } from './calculos';
 
 describe('toFechaStr', () => {
@@ -149,5 +151,30 @@ describe('proximaCuotaPendiente', () => {
   it('devuelve null para préstamo sin detalle', () => {
     expect(proximaCuotaPendiente(null)).toBeNull();
     expect(proximaCuotaPendiente({})).toBeNull();
+  });
+});
+
+describe('frecuencia', () => {
+  it('nombra las frecuencias conocidas', () => {
+    expect(frecuenciaNombre(1)).toBe('Diaria');
+    expect(frecuenciaNombre(7)).toBe('Semanal');
+    expect(frecuenciaNombre(15)).toBe('Quincenal');
+    expect(frecuenciaNombre(30)).toBe('Mensual');
+  });
+
+  it('pluraliza las frecuencias conocidas', () => {
+    expect(frecuenciaPlural(1)).toBe('diarias');
+    expect(frecuenciaPlural(7)).toBe('semanales');
+    expect(frecuenciaPlural(30)).toBe('mensuales');
+  });
+
+  it('trata préstamos viejos sin frecuencia como semanales', () => {
+    expect(frecuenciaPlural(undefined)).toBe('semanales');
+    expect(frecuenciaNombre(null)).toBe('Semanal');
+  });
+
+  it('describe frecuencias no estándar por cantidad de días', () => {
+    expect(frecuenciaPlural(10)).toBe('cada 10 días');
+    expect(frecuenciaNombre(10)).toBe('Cada 10 días');
   });
 });
