@@ -1,12 +1,78 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Share2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney } from '@/utils/formatters';
+import { construirComprobantePago } from '@/utils/comprobante';
+import { compartirComprobante } from '@/utils/compartir';
+
+const DURACION_TOAST_COBRO = 8000;
 
 export function useCobrar() {
-  const { prestamos, clientes, cobrarCuota, revertirCuota } = useApp();
+  const { prestamos, clientes, rutas, cobrarCuota, revertirCuota } = useApp();
   const toast = useToast();
   const [cobrando, setCobrando] = useState(false);
+
+  // Refs con el estado más reciente, para leerlo al tocar "Enviar comprobante"
+  // (el onSnapshot ya reflejó el pago para entonces).
+  const refs = useRef({ prestamos, clientes, rutas });
+  useEffect(() => {
+    refs.current = { prestamos, clientes, rutas };
+  }, [prestamos, clientes, rutas]);
+
+  const enviarComprobante = useCallback(
+    async (prestamoId, resultado) => {
+      try {
+        const { prestamos: ps, clientes: cs, rutas: rs } = refs.current;
+        const prestamo = ps.find((p) => p.id === prestamoId);
+        const cliente = prestamo ? cs.find((c) => c.id === prestamo.clienteId) : null;
+        const ruta = cliente ? rs.find((r) => r.id === cliente.rutaId) : null;
+        if (!prestamo || !cliente) {
+          toast.error('No se pudo armar el comprobante');
+          return;
+        }
+        const { file, mensaje, nombreArchivo } = await construirComprobantePago({
+          cliente,
+          prestamo,
+          ruta,
+          resultado,
+        });
+        await compartirComprobante({ file, mensaje, telefono: cliente.tel, nombreArchivo });
+      } catch (err) {
+        toast.error('No se pudo enviar el comprobante', { description: err.message });
+      }
+    },
+    [toast],
+  );
+
+  const toastCobro = useCallback(
+    (prestamoId, res, nombreCliente) => {
+      toast.success(res.finalizado ? '¡Préstamo finalizado!' : 'Cuota cobrada', {
+        description: `${nombreCliente ?? ''} · Cuota ${res.cuotaNro}/${res.cuotasTotales} · ${formatMoney(res.monto)}`,
+        duration: DURACION_TOAST_COBRO,
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            try {
+              await revertirCuota(prestamoId, res.cuotaNro);
+              toast.info('Cobro revertido');
+            } catch (err) {
+              toast.error('No se pudo revertir', { description: err.message });
+            }
+          },
+        },
+        actions: [
+          {
+            label: 'Enviar comprobante',
+            icon: Share2,
+            keepOpen: true,
+            onClick: () => enviarComprobante(prestamoId, res),
+          },
+        ],
+      });
+    },
+    [toast, revertirCuota, enviarComprobante],
+  );
 
   const cobrarProxima = useCallback(
     async (prestamoId) => {
@@ -18,20 +84,7 @@ export function useCobrar() {
       try {
         const res = await cobrarCuota(prestamoId, proxima.nro);
         const cliente = clientes.find((c) => c.id === p.clienteId);
-        toast.success(res.finalizado ? '¡Préstamo finalizado!' : 'Cuota cobrada', {
-          description: `${cliente?.nombre ?? ''} · Cuota ${res.cuotaNro}/${res.cuotasTotales} · ${formatMoney(res.monto)}`,
-          action: {
-            label: 'Deshacer',
-            onClick: async () => {
-              try {
-                await revertirCuota(prestamoId, res.cuotaNro);
-                toast.info('Cobro revertido');
-              } catch (err) {
-                toast.error('No se pudo revertir', { description: err.message });
-              }
-            },
-          },
-        });
+        toastCobro(prestamoId, res, cliente?.nombre);
         return res;
       } catch (err) {
         toast.error('No se pudo cobrar', { description: err.message });
@@ -39,7 +92,7 @@ export function useCobrar() {
         setCobrando(false);
       }
     },
-    [cobrando, prestamos, clientes, cobrarCuota, revertirCuota, toast],
+    [cobrando, prestamos, clientes, cobrarCuota, toast, toastCobro],
   );
 
   const cobrarCuotaNro = useCallback(
@@ -48,20 +101,7 @@ export function useCobrar() {
       setCobrando(true);
       try {
         const res = await cobrarCuota(prestamoId, nro);
-        toast.success(res.finalizado ? '¡Préstamo finalizado!' : 'Cuota cobrada', {
-          description: `${nombreCliente ?? ''} · Cuota ${res.cuotaNro}/${res.cuotasTotales} · ${formatMoney(res.monto)}`,
-          action: {
-            label: 'Deshacer',
-            onClick: async () => {
-              try {
-                await revertirCuota(prestamoId, res.cuotaNro);
-                toast.info('Cobro revertido');
-              } catch (err) {
-                toast.error('No se pudo revertir', { description: err.message });
-              }
-            },
-          },
-        });
+        toastCobro(prestamoId, res, nombreCliente);
         return res;
       } catch (err) {
         toast.error('No se pudo cobrar', { description: err.message });
@@ -69,7 +109,7 @@ export function useCobrar() {
         setCobrando(false);
       }
     },
-    [cobrando, cobrarCuota, revertirCuota, toast],
+    [cobrando, cobrarCuota, toast, toastCobro],
   );
 
   return { cobrarProxima, cobrarCuotaNro, cobrando };
