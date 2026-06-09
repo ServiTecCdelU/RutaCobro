@@ -15,11 +15,16 @@ export const construirCierre = ({
   prestamos = [],
   clientes = [],
   rutas = [],
+  miembros = [],
   desde,
   hasta,
 }) => {
   const clientesMap = new Map(clientes.map((c) => [c.id, c]));
   const rutasMap = new Map(rutas.map((r) => [r.id, r]));
+  // % de comisión del cobrador asignado a cada ruta.
+  const comisionPctPorRuta = new Map(
+    miembros.filter((m) => m.rutaId).map((m) => [m.rutaId, m.comision ?? 0]),
+  );
   const SIN_RUTA = '__sin_ruta__';
 
   // Sembramos todas las rutas para que un cobrador sin actividad también aparezca.
@@ -51,17 +56,22 @@ export const construirCierre = ({
   }
 
   const porRuta = [...porRutaMap.entries()]
-    .map(([rutaId, a]) => ({
-      ruta:
-        rutasMap.get(rutaId) ??
-        (rutaId === SIN_RUTA ? null : { id: rutaId, nombre: 'Ruta eliminada' }),
-      cobrado: a.cobrado,
-      cobros: a.cobros,
-      gastos: a.gastos,
-      prestado: a.prestado,
-      clientes: a.clientesSet.size,
-      neto: a.cobrado - a.gastos - a.prestado,
-    }))
+    .map(([rutaId, a]) => {
+      const comisionPct = comisionPctPorRuta.get(rutaId) ?? 0;
+      return {
+        ruta:
+          rutasMap.get(rutaId) ??
+          (rutaId === SIN_RUTA ? null : { id: rutaId, nombre: 'Ruta eliminada' }),
+        cobrado: a.cobrado,
+        cobros: a.cobros,
+        gastos: a.gastos,
+        prestado: a.prestado,
+        clientes: a.clientesSet.size,
+        comisionPct,
+        comision: Math.round(a.cobrado * (comisionPct / 100)),
+        neto: a.cobrado - a.gastos - a.prestado,
+      };
+    })
     .sort((x, y) => y.cobrado - x.cobrado);
 
   const totales = porRuta.reduce(
@@ -69,10 +79,11 @@ export const construirCierre = ({
       cobrado: t.cobrado + r.cobrado,
       gastos: t.gastos + r.gastos,
       prestado: t.prestado + r.prestado,
+      comision: t.comision + r.comision,
       neto: t.neto + r.neto,
       cobros: t.cobros + r.cobros,
     }),
-    { cobrado: 0, gastos: 0, prestado: 0, neto: 0, cobros: 0 },
+    { cobrado: 0, gastos: 0, prestado: 0, comision: 0, neto: 0, cobros: 0 },
   );
 
   return { porRuta, totales };

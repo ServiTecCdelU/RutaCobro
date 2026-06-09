@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Banknote, FileText, HandCoins } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Percent, FileText, HandCoins } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney, formatFecha, formatFechaLarga } from '@/utils/formatters';
@@ -22,13 +22,14 @@ function Linea({ label, value, color = 'text-slate-900 dark:text-slate-100' }) {
 }
 
 export default function Cierre() {
-  const { user, clientes, rutas, prestamos, error } = useApp();
+  const { user, clientes, rutas, prestamos, error, subscribeMiembros } = useApp();
   const toast = useToast();
 
   const [fechaDesde, setFechaDesde] = useState(hoy());
   const [fechaHasta, setFechaHasta] = useState(hoy());
   const [movimientos, setMovimientos] = useState([]);
   const [gastos, setGastos] = useState([]);
+  const [miembros, setMiembros] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [exportandoPDF, setExportandoPDF] = useState(false);
 
@@ -53,9 +54,15 @@ export default function Cierre() {
     return unsub;
   }, [user, desde, hasta]);
 
+  useEffect(() => {
+    if (!user) return;
+    return subscribeMiembros(setMiembros);
+  }, [user, subscribeMiembros]);
+
   const { porRuta, totales } = useMemo(
-    () => construirCierre({ movimientos, gastos, prestamos, clientes, rutas, desde, hasta }),
-    [movimientos, gastos, prestamos, clientes, rutas, desde, hasta],
+    () =>
+      construirCierre({ movimientos, gastos, prestamos, clientes, rutas, miembros, desde, hasta }),
+    [movimientos, gastos, prestamos, clientes, rutas, miembros, desde, hasta],
   );
 
   const conActividad = porRuta.filter((r) => r.cobrado > 0 || r.gastos > 0 || r.prestado > 0);
@@ -94,14 +101,14 @@ export default function Cierre() {
         25,
       );
       doc.text(
-        `Cobrado: ${formatMoney(totales.cobrado)} · Gastos: ${formatMoney(totales.gastos)} · Neto a rendir: ${formatMoney(totales.neto)}`,
+        `Cobrado: ${formatMoney(totales.cobrado)} · Gastos: ${formatMoney(totales.gastos)} · Neto a rendir: ${formatMoney(totales.neto)} · Comisiones: ${formatMoney(totales.comision)}`,
         14,
         31,
       );
 
       autoTable(doc, {
         startY: 38,
-        head: [['Ruta', 'Cobros', 'Cobrado', 'Gastos', 'Prestado', 'Neto a rendir']],
+        head: [['Ruta', 'Cobros', 'Cobrado', 'Gastos', 'Prestado', 'Neto a rendir', 'Comisión']],
         body: porRuta.map((r) => [
           r.ruta?.nombre ?? 'Sin ruta',
           String(r.cobros),
@@ -109,6 +116,7 @@ export default function Cierre() {
           formatMoney(r.gastos),
           formatMoney(r.prestado),
           formatMoney(r.neto),
+          formatMoney(r.comision),
         ]),
         foot: [
           [
@@ -118,6 +126,7 @@ export default function Cierre() {
             formatMoney(totales.gastos),
             formatMoney(totales.prestado),
             formatMoney(totales.neto),
+            formatMoney(totales.comision),
           ],
         ],
         styles: { fontSize: 9 },
@@ -196,18 +205,18 @@ export default function Cierre() {
           accent="#f43f5e"
         />
         <MetricCard
-          label="Prestado"
-          value={formatMoney(totales.prestado)}
-          icon={Banknote}
-          accent="#8b5cf6"
-          sublabel="Capital colocado"
-        />
-        <MetricCard
           label="Neto a rendir"
           value={formatMoney(totales.neto)}
           icon={Wallet}
           accent="#3b82f6"
           sublabel="Cobrado − gastos − prestado"
+        />
+        <MetricCard
+          label="Comisiones"
+          value={formatMoney(totales.comision)}
+          icon={Percent}
+          accent="#8b5cf6"
+          sublabel="A pagar a cobradores"
         />
       </div>
 
@@ -236,15 +245,25 @@ export default function Cierre() {
                   {r.cobros} cobros · {r.clientes} clientes
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Linea label="Cobrado" value={formatMoney(r.cobrado)} color="text-emerald-600" />
                 <Linea label="Gastos" value={formatMoney(r.gastos)} color="text-rose-600" />
                 <Linea label="Prestado" value={formatMoney(r.prestado)} color="text-violet-600" />
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-end justify-between gap-2">
                 <Linea
-                  label="A rendir"
+                  label="Neto a rendir"
                   value={formatMoney(r.neto)}
                   color={r.neto < 0 ? 'text-rose-600' : 'text-slate-900 dark:text-slate-100'}
                 />
+                <div className="text-right">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                    Comisión{r.comisionPct > 0 ? ` (${r.comisionPct}%)` : ''}
+                  </div>
+                  <div className="text-sm font-bold tabular-nums text-violet-600">
+                    {formatMoney(r.comision)}
+                  </div>
+                </div>
               </div>
             </div>
           ))}

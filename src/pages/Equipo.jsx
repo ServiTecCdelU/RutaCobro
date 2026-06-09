@@ -52,9 +52,10 @@ export default function Equipo() {
   const [editandoCapital, setEditandoCapital] = useState(false);
   const [capitalInput, setCapitalInput] = useState('');
 
-  // Editar monto de miembro
+  // Editar monto/comisión de miembro
   const [editandoMiembro, setEditandoMiembro] = useState(null);
   const [montoEditInput, setMontoEditInput] = useState('');
+  const [comisionEditInput, setComisionEditInput] = useState('');
 
   // Mapa clienteId → rutaId para resolver la ruta de cada préstamo
   const clienteRutaMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.rutaId])), [clientes]);
@@ -229,13 +230,18 @@ export default function Equipo() {
 
   const handleGuardarMontoMiembro = async () => {
     const valor = Number(montoEditInput);
+    const comision = Number(comisionEditInput);
     if (isNaN(valor) || valor < 0) {
       toast.error('Ingresá un monto válido');
       return;
     }
+    if (isNaN(comision) || comision < 0 || comision > 100) {
+      toast.error('La comisión debe estar entre 0 y 100%');
+      return;
+    }
     try {
-      await actualizarMiembro(editandoMiembro.id, { montoAsignado: valor });
-      toast.success('Monto actualizado');
+      await actualizarMiembro(editandoMiembro.id, { montoAsignado: valor, comision });
+      toast.success('Cobrador actualizado');
       setEditandoMiembro(null);
     } catch (err) {
       toast.error('No se pudo actualizar', { description: err.message });
@@ -544,6 +550,12 @@ export default function Equipo() {
                             · Ruta: <span className="font-semibold">{ruta.nombre}</span>
                           </>
                         )}
+                        {!esAdminMiembro && (m.comision ?? 0) > 0 && (
+                          <>
+                            {' '}
+                            · Comisión: <span className="font-semibold">{m.comision}%</span>
+                          </>
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -552,10 +564,11 @@ export default function Equipo() {
                           onClick={() => {
                             setEditandoMiembro(m);
                             setMontoEditInput(String(montoAsig));
+                            setComisionEditInput(String(m.comision ?? 0));
                           }}
                           className="w-9 h-9 rounded-xl text-slate-500 hover:bg-slate-100 flex items-center justify-center"
-                          title="Editar monto"
-                          aria-label="Editar monto"
+                          title="Editar cobrador"
+                          aria-label="Editar cobrador"
                         >
                           <Pencil size={15} />
                         </button>
@@ -634,8 +647,11 @@ export default function Equipo() {
       {editandoMiembro && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-popover">
-            <h3 className="font-bold text-slate-900 mb-1">Editar monto asignado</h3>
+            <h3 className="font-bold text-slate-900 mb-1">Editar cobrador</h3>
             <p className="text-xs text-slate-500 mb-4">{editandoMiembro.email}</p>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 block">
+              Monto asignado $
+            </label>
             <input
               type="number"
               value={montoEditInput}
@@ -644,6 +660,21 @@ export default function Equipo() {
               className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
               autoFocus
             />
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5 mt-4 block">
+              Comisión %
+            </label>
+            <input
+              type="number"
+              value={comisionEditInput}
+              onChange={(e) => setComisionEditInput(e.target.value)}
+              min="0"
+              max="100"
+              placeholder="Ej: 10"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+            />
+            <p className="text-xs text-slate-400 mt-1.5">
+              Se calcula sobre lo cobrado y se muestra en el Cierre de caja.
+            </p>
             <div className="flex gap-3 mt-4">
               <button
                 onClick={() => setEditandoMiembro(null)}

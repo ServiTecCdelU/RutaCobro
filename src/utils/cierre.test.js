@@ -61,6 +61,33 @@ describe('construirCierre', () => {
     expect(totales.prestado).toBe(0);
   });
 
+  it('calcula la comisión del cobrador como % de lo cobrado', () => {
+    const { porRuta, totales } = construirCierre({
+      ...base,
+      miembros: [
+        { rutaId: 'r1', rol: 'cobrador', comision: 10 },
+        { rutaId: 'r2', rol: 'cobrador', comision: 5 },
+      ],
+      movimientos: [
+        { clienteId: 'c1', monto: 1000, fecha: '2026-06-08' },
+        { clienteId: 'c2', monto: 800, fecha: '2026-06-08' },
+      ],
+    });
+    const r1 = porRuta.find((r) => r.ruta.id === 'r1');
+    const r2 = porRuta.find((r) => r.ruta.id === 'r2');
+    expect(r1.comision).toBe(100); // 10% de 1000
+    expect(r2.comision).toBe(40); // 5% de 800
+    expect(totales.comision).toBe(140);
+  });
+
+  it('comisión 0 cuando el cobrador no tiene % configurado', () => {
+    const { totales } = construirCierre({
+      ...base,
+      movimientos: [{ clienteId: 'c1', monto: 1000, fecha: '2026-06-08' }],
+    });
+    expect(totales.comision).toBe(0);
+  });
+
   it('calcula totales sumando todas las rutas', () => {
     const { totales } = construirCierre({
       ...base,
