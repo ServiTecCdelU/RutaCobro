@@ -24,14 +24,17 @@ src/
 ├── firebase/       config.js (init Firebase) + services.js (todas las operaciones Firestore)
 ├── context/        AuthContext, DataContext, AppContext — 3 capas (ver sección abajo)
 ├── hooks/          useMetricas, useModal, useCobrar, useDarkMode, usePaginacion
-├── utils/          formatters (moneda, fechas) + calculos (cuotas, atraso, fechas)
+├── utils/          formatters (moneda, fechas), calculos (cuotas, atraso, frecuencia),
+│                   comprobante + estadoCuenta + cierre (PDFs jsPDF), compartir (Web Share),
+│                   cobranza, refinanciacion, scoreCliente, gastos, servitec
 ├── components/
 │   ├── layout/     Header (nav + hamburger mobile) + Layout (bottom nav mobile)
 │   ├── ui/         MetricCard, RutaSelector, Toast, EmptyState, ConfirmDialog, ErrorBanner,
-│   │               BusquedaGlobal, Paginacion, ActionMenu
+│   │               BusquedaGlobal, Paginacion, ActionMenu, ScoreBadge
 │   ├── dashboard/  BarChart, RutaPerformance, CuotasHoy, MoraChart
 │   ├── clientes/   ClienteCard, NotasCliente
-│   └── modals/     ModalDetalle, ModalNuevoPrestamo, ModalNuevoCliente, ModalPago, ModalRuta
+│   └── modals/     ModalDetalle, ModalNuevoPrestamo, ModalNuevoCliente, ModalPago,
+│                   ModalRefinanciar, ModalRuta
 ├── components/     ErrorBoundary, Onboarding, PwaUpdater (raíz de components/)
 └── pages/          Login, Dashboard, Cobranza, Clientes, Rutas, Movimientos, Cierre, Gastos, Equipo, AceptarInvitacion, Configuracion
 ```
@@ -47,14 +50,16 @@ rutas/{rutaId}              ← nombre, color (hex), cobrador, creadoEn
 
 clientes/{clienteId}        ← nombre, dni, tel, direccion, rutaId (ref), creadoEn
 
-prestamos/{prestamoId}      ← clienteId, monto, interes, cuotas, fechaInicio,
+prestamos/{prestamoId}      ← clienteId, monto, interes, cuotas, fechaInicio, frecuenciaDias,
                               estado: 'activo'|'mora'|'finalizado',
-                              cuotasDetalle: Array<{ nro, monto, vencimiento, pagada, fechaPago }>
+                              cuotasDetalle: Array<{ nro, monto, vencimiento, pagada, fechaPago,
+                                                     pagado?, refinanciada? }>,
+                              refinanciadoEn?, refinanciaciones?  (al refinanciar)
 
 movimientos/{movId}         ← prestamoId, clienteId, cuotaNro, monto,
                               tipo: 'cuota'|'pago-monto', fecha, creadoEn
 
-usuarios/{uid}              ← membresía (rol, rutaId, montoAsignado, email)
+usuarios/{uid}              ← membresía (rol, rutaId, montoAsignado, comision (%), email)
 
 invitaciones/{token}        ← email, rol, rutaId, montoAsignado, creadoEn
 
@@ -82,14 +87,14 @@ El admin define su capital total y asigna una porción a cada cobrador junto con
 - `DataContext` — abre listeners `onSnapshot` para rutas, clientes y préstamos; expone arrays reactivos.
 - `AppContext` — compone Auth + Data + acciones CRUD (expone funciones de `firebase/services.js` directamente, sin currying).
 
-## Roles (Firestore rules)
-4 roles: `admin`, `cobrador`, `visitante`, `cliente`. Colección de membresía es `/usuarios/{uid}`. Las reglas validan permisos por rol y por ruta asignada.
+## Roles
+4 roles: `admin`, `cobrador`, `visitante`, `cliente`. Colección de membresía es `/usuarios/{uid}`. **La lógica de roles se aplica en el frontend** (rutas `AdminOnly`, gating por `puedeEditar`/`esAdmin`, datos filtrados por ruta en `DataContext`), NO en las reglas de Firestore.
 
 ## Firestore local
 `initializeFirestore` usa `persistentLocalCache` con `persistentMultipleTabManager` — los datos se cachean en IndexedDB y se sincronizan entre pestañas. Esto permite operaciones offline y arranque rápido.
 
 ## Firestore Security Rules
-Las reglas están en `firestore.rules`. La lógica de permisos se basa en la colección `/usuarios/{uid}` (membresía). Helpers clave: `isAdmin()`, `isCobrador()`, `canWrite()` (admin o cobrador), `myRutaId()`. Movimientos son inmutables (no se permite `update`). Cobradores solo acceden a clientes de su ruta.
+Las reglas están en `firestore.rules` y son **simples**: cualquier usuario autenticado puede leer y escribir todas las colecciones (`allow read, write: if request.auth != null`). La lógica de roles se maneja en el frontend (ver sección **Roles**). Únicas restricciones a nivel reglas: `movimientos` son inmutables (`update` denegado, solo `create`/`delete`) y `config` no se puede borrar. **Importante:** una consulta que combine `where(campoA)` + `orderBy(campoB)` requiere índice compuesto; por eso `subscribeNotas` filtra por `clienteId` y ordena en el cliente (ver `services.js`).
 
 ## Deploy
 Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `firebase.json` es un archivo autogenerado y NO debe commitearse con credenciales.
@@ -104,6 +109,9 @@ Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `fireba
 - `refinanciarPrestamo` reestructura el saldo **en el mismo préstamo** (transacción): conserva lo cobrado, reemplaza las cuotas impagas por un cronograma nuevo (nuevo interés/cantidad/frecuencia) sobre el saldo. No crea préstamo nuevo ni mueve caja, por eso no afecta `colocadoHistorico`/capital. Lógica pura en `src/utils/refinanciacion.js`. La "renovación" (préstamo nuevo al finalizar) reusa `ModalNuevoPrestamo` precargado desde el detalle.
 - `DataContext` abre listeners `onSnapshot` al loguearse y los cierra al desloguearse.
 - Métricas completamente derivadas de `prestamos + clientes + rutas` en `useMetricas.js` (sin estado propio).
+- **PDFs con jsPDF (import dinámico):** comprobante de pago (`comprobante.js`, vectorial A5) y estado de cuenta (`estadoCuenta.js`, A4 con `jspdf-autotable`). Estilo "factura" con acento = color de la ruta. El reparto a WhatsApp lo hace `compartir.js` (Web Share API con archivo en mobile; fallback descarga + `wa.me` en desktop). `wa.me` NO permite adjuntar archivos, por eso el envío usa Web Share.
+- **Cobranza del día** (`cobranza.js` + `/cobranza`): `construirItemsCobranza` arma la lista de próximas cuotas a cobrar por urgencia. Reusa `useCobrar`.
+- **Cierre de caja** (`cierre.js` + `/cierre`, admin): `construirCierre` calcula por ruta cobrado/gastos/prestado/neto y la **comisión** del cobrador (`usuarios.comision` % × cobrado). Export PDF con `jspdf-autotable`.
 - Score de riesgo del cliente (`src/utils/scoreCliente.js`): derivado del historial de pagos (puntualidad, mora actual, refinanciaciones, préstamos finalizados). Categorías: Excelente/Bueno/Regular/Riesgoso/Nuevo. Se muestra con `ScoreBadge` en el detalle del préstamo y al elegir cliente en el alta.
 - Modales usan `useModal(onClose)` — bloquea scroll del body y cierra con Escape.
 - Modales full-screen en mobile (`items-end`), centrados en desktop (`sm:items-center`).
@@ -144,8 +152,11 @@ Husky + lint-staged: al hacer commit se ejecuta ESLint (--fix) y Prettier sobre 
 ## Tests
 - Framework: Vitest con jsdom + @testing-library/react.
 - Setup global en `src/test/setup.js`.
-- Tests existentes: `src/utils/calculos.test.js`, `src/utils/formatters.test.js`.
-- Vitest usa `globals: true` — no hace falta importar `describe`/`it`/`expect`.
+- Tests de utilidades en `src/utils/*.test.js`: `calculos`, `formatters`, `comprobante`,
+  `compartir`, `cobranza`, `cierre`, `refinanciacion`, `scoreCliente`, `estadoCuenta`.
+- **Importar los globals de Vitest** (`import { describe, it, expect } from 'vitest'`): aunque
+  Vitest corre con `globals: true`, la config de ESLint no los declara, así que sin el import
+  el pre-commit (`eslint --max-warnings 0`) bloquea el commit.
 
 ## Convenciones de código
 - Sin TypeScript — JS puro con JSDoc si es necesario documentar tipos complejos.
@@ -155,6 +166,10 @@ Husky + lint-staged: al hacer commit se ejecuta ESLint (--fix) y Prettier sobre 
 - Fechas siempre en formato `YYYY-MM-DD` internamente; mostrar con `formatFecha()`.
 - Colores de ruta se usan inline via `style={{ background: ruta.color }}` — no mapear a clases Tailwind.
 
-## Exportaciones
-- `Movimientos` exporta CSV (nativo Blob) y PDF vía `jspdf` + `jspdf-autotable` (import dinámico, se carga solo al usar).
-- `subscribeMovimientosPorRango(desde, hasta, cb, onError)` — listener con rango de fechas, fuera del contexto global.
+## Exportaciones / documentos
+- `Movimientos` exporta CSV (nativo Blob) y PDF; `Cierre` exporta el PDF de rendición. Ambos
+  vía `jspdf` + `jspdf-autotable` (import dinámico, se carga solo al usar).
+- **Comprobante de pago** (al cobrar, desde el toast en `useCobrar`) y **estado de cuenta**
+  (desde `ModalDetalle`): PDF + envío por WhatsApp con `compartir.js`.
+- `subscribeMovimientosPorRango(desde, hasta, cb, onError)` y `subscribeGastosPorRango(...)` —
+  listeners con rango de fechas, fuera del contexto global (los usan `Movimientos` y `Cierre`).
