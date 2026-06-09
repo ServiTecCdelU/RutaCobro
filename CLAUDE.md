@@ -104,6 +104,7 @@ Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `fireba
 - `refinanciarPrestamo` reestructura el saldo **en el mismo préstamo** (transacción): conserva lo cobrado, reemplaza las cuotas impagas por un cronograma nuevo (nuevo interés/cantidad/frecuencia) sobre el saldo. No crea préstamo nuevo ni mueve caja, por eso no afecta `colocadoHistorico`/capital. Lógica pura en `src/utils/refinanciacion.js`. La "renovación" (préstamo nuevo al finalizar) reusa `ModalNuevoPrestamo` precargado desde el detalle.
 - `DataContext` abre listeners `onSnapshot` al loguearse y los cierra al desloguearse.
 - Métricas completamente derivadas de `prestamos + clientes + rutas` en `useMetricas.js` (sin estado propio).
+- Score de riesgo del cliente (`src/utils/scoreCliente.js`): derivado del historial de pagos (puntualidad, mora actual, refinanciaciones, préstamos finalizados). Categorías: Excelente/Bueno/Regular/Riesgoso/Nuevo. Se muestra con `ScoreBadge` en el detalle del préstamo y al elegir cliente en el alta.
 - Modales usan `useModal(onClose)` — bloquea scroll del body y cierra con Escape.
 - Modales full-screen en mobile (`items-end`), centrados en desktop (`sm:items-center`).
 - Bottom tab bar solo en mobile (`md:hidden`), nav horizontal en desktop.

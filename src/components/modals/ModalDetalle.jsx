@@ -8,7 +8,9 @@ import { useCobrar } from '@/hooks/useCobrar';
 import { useModal } from '@/hooks/useModal';
 import { construirEstadoCuenta } from '@/utils/estadoCuenta';
 import { compartirComprobante } from '@/utils/compartir';
+import { scoreCliente } from '@/utils/scoreCliente';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import ScoreBadge from '@/components/ui/ScoreBadge';
 import ModalPago from '@/components/modals/ModalPago';
 import ModalRefinanciar from '@/components/modals/ModalRefinanciar';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
@@ -42,6 +44,8 @@ export default function ModalDetalle({ prestamoId, onClose }) {
 
   const cliente = clientes.find((c) => c.id === prestamo.clienteId);
   const ruta = rutas.find((r) => r.id === cliente?.rutaId);
+  const prestamosCliente = prestamos.filter((p) => p.clienteId === prestamo.clienteId);
+  const historial = scoreCliente(prestamosCliente);
   const cuotas = prestamo.cuotasDetalle ?? [];
   const totalPagado = cuotas.reduce((s, c) => s + (c.pagado ?? (c.pagada ? c.monto : 0)), 0);
   const totalDeuda = cuotas.reduce((s, c) => s + c.monto, 0) - totalPagado;
@@ -89,7 +93,10 @@ export default function ModalDetalle({ prestamoId, onClose }) {
                   .join('') ?? '?'}
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-lg">{cliente?.nombre}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-slate-900 text-lg">{cliente?.nombre}</h3>
+                  <ScoreBadge score={historial} />
+                </div>
                 <p className="text-xs text-slate-500">
                   {cliente?.dni ? `DNI ${cliente.dni} · ` : ''}
                   {ruta?.nombre ?? 'Sin ruta'} · {prestamo.cuotas} cuotas{' '}
@@ -237,6 +244,39 @@ export default function ModalDetalle({ prestamoId, onClose }) {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-5 pt-5 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Historial del cliente
+                </div>
+                <ScoreBadge score={historial} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  {
+                    label: 'Puntualidad',
+                    value:
+                      historial.stats.puntualidad != null ? `${historial.stats.puntualidad}%` : '—',
+                  },
+                  {
+                    label: 'Préstamos',
+                    value: String(historial.stats.prestamos),
+                    sub: `${historial.stats.finalizados} finalizados`,
+                  },
+                  { label: 'Atraso prom.', value: `${historial.stats.atrasoPromedio}d` },
+                  { label: 'En mora', value: String(historial.stats.moraActual), sub: 'cuotas' },
+                ].map((s) => (
+                  <div key={s.label} className="p-2.5 rounded-xl bg-slate-50">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {s.label}
+                    </div>
+                    <div className="text-base font-bold text-slate-900 tabular-nums">{s.value}</div>
+                    {s.sub && <div className="text-[10px] text-slate-400">{s.sub}</div>}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="mt-5 pt-5 border-t border-slate-100">

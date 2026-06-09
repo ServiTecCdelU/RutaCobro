@@ -5,6 +5,7 @@ import { generarCuotas, hoy } from '@/utils/calculos';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useModal } from '@/hooks/useModal';
+import ScoreBadge from '@/components/ui/ScoreBadge';
 
 export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
   const { clientes, rutas, prestamos, crearPrestamo, esCobrador, rutaIdAsignada, userDoc } =
@@ -157,6 +158,12 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
                   );
                 })}
               </select>
+              {clienteId && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                  <ScoreBadge prestamos={prestamos.filter((p) => p.clienteId === clienteId)} />
+                  <span>Historial del cliente</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
