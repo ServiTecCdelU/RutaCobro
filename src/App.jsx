@@ -6,6 +6,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 
 const Login = lazy(() => import('@/pages/Login'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Cobranza = lazy(() => import('@/pages/Cobranza'));
 const Clientes = lazy(() => import('@/pages/Clientes'));
 const Rutas = lazy(() => import('@/pages/Rutas'));
 const Movimientos = lazy(() => import('@/pages/Movimientos'));
@@ -76,6 +77,16 @@ export default function App() {
                     <ErrorBoundary>
                       <LazyPage>
                         <Dashboard />
+                      </LazyPage>
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="cobranza"
+                  element={
+                    <ErrorBoundary>
+                      <LazyPage>
+                        <Cobranza />
                       </LazyPage>
                     </ErrorBoundary>
                   }

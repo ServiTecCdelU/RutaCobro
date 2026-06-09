@@ -51,6 +51,9 @@ export default function Header({ onNuevoPrestamo }) {
             <NavLink to="/" end className={navLinkClass}>
               Tablero
             </NavLink>
+            <NavLink to="/cobranza" className={navLinkClass}>
+              Cobranza
+            </NavLink>
             <NavLink to="/clientes" className={navLinkClass}>
               Clientes
             </NavLink>
@@ -158,6 +161,9 @@ export default function Header({ onNuevoPrestamo }) {
         <div className="md:hidden border-t border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 flex flex-col gap-1">
           <NavLink to="/" end className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Tablero
+          </NavLink>
+          <NavLink to="/cobranza" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+            Cobranza del día
           </NavLink>
           <NavLink to="/clientes" className={navLinkClass} onClick={() => setMenuOpen(false)}>
             Clientes

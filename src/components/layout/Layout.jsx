@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Route, Receipt, TrendingDown } from 'lucide-react';
+import { LayoutDashboard, Users, Receipt, TrendingDown, HandCoins } from 'lucide-react';
 import Header from './Header';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import { useApp } from '@/context/AppContext';
@@ -8,13 +8,13 @@ import { servitecWhatsApp } from '@/utils/servitec';
 
 export default function Layout({ children }) {
   const [modalNuevo, setModalNuevo] = useState(false);
-  const { syncing, esAdmin, puedeEditar } = useApp();
+  const { syncing, puedeEditar } = useApp();
   const tabs = [
     { to: '/', icon: LayoutDashboard, label: 'Tablero', end: true },
+    { to: '/cobranza', icon: HandCoins, label: 'Cobranza' },
     { to: '/clientes', icon: Users, label: 'Clientes' },
     { to: '/caja', icon: Receipt, label: 'Caja' },
     ...(puedeEditar ? [{ to: '/gastos', icon: TrendingDown, label: 'Gastos' }] : []),
-    ...(esAdmin ? [{ to: '/rutas', icon: Route, label: 'Rutas' }] : []),
   ];
 
   return (

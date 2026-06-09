@@ -8,7 +8,7 @@ Siempre responder en español.
 # RutaCobro — Contexto del proyecto
 
 ## ¿Qué es?
-Sistema de gestión de cartera de préstamos organizados por rutas de cobro. Reemplaza a PlutoFM (AdminLTE 2015). Permite registrar clientes, crear préstamos con cuotas semanales, cobrar cuotas en 1 click y ver métricas en tiempo real.
+Sistema de gestión de cartera de préstamos organizados por rutas de cobro. Reemplaza a PlutoFM (AdminLTE 2015). Permite registrar clientes, crear préstamos con cuotas de frecuencia configurable (diaria, semanal, quincenal o mensual), cobrar cuotas en 1 click, enviar comprobantes por WhatsApp y ver métricas en tiempo real. La página **Cobranza del día** (`/cobranza`) lista las cuotas vencidas/de hoy/próximas para cobrar, con recordatorio por WhatsApp y link al mapa de la dirección.
 
 ## Stack
 - **Runtime:** Vite 5 + React 18
@@ -33,7 +33,7 @@ src/
 │   ├── clientes/   ClienteCard, NotasCliente
 │   └── modals/     ModalDetalle, ModalNuevoPrestamo, ModalNuevoCliente, ModalPago, ModalRuta
 ├── components/     ErrorBoundary, Onboarding, PwaUpdater (raíz de components/)
-└── pages/          Login, Dashboard, Clientes, Rutas, Movimientos, Equipo, AceptarInvitacion, Configuracion
+└── pages/          Login, Dashboard, Cobranza, Clientes, Rutas, Movimientos, Equipo, AceptarInvitacion, Configuracion
 ```
 
 ## Modelo de datos Firestore
