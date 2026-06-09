@@ -6,6 +6,8 @@ import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useCobrar } from '@/hooks/useCobrar';
 import { useModal } from '@/hooks/useModal';
+import { construirEstadoCuenta } from '@/utils/estadoCuenta';
+import { compartirComprobante } from '@/utils/compartir';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ModalPago from '@/components/modals/ModalPago';
 import NotasCliente from '@/components/clientes/NotasCliente';
@@ -16,6 +18,7 @@ export default function ModalDetalle({ prestamoId, onClose }) {
   const { cobrarCuotaNro } = useCobrar();
   const [confirmRevertir, setConfirmRevertir] = useState(null);
   const [mostrarPago, setMostrarPago] = useState(false);
+  const [generandoEstado, setGenerandoEstado] = useState(false);
   useModal(onClose);
 
   const handleRecibo = async (c) => {
@@ -41,6 +44,19 @@ export default function ModalDetalle({ prestamoId, onClose }) {
   const hayPendientes = cuotas.some((c) => !c.pagada);
 
   const handleCobrar = (nro) => cobrarCuotaNro(prestamo.id, nro, cliente?.nombre);
+
+  const handleEstadoCuenta = async () => {
+    if (generandoEstado) return;
+    setGenerandoEstado(true);
+    try {
+      const { file, mensaje } = await construirEstadoCuenta({ cliente, prestamo, ruta });
+      await compartirComprobante({ file, mensaje, telefono: cliente?.tel });
+    } catch (err) {
+      toast.error('No se pudo generar el estado de cuenta', { description: err.message });
+    } finally {
+      setGenerandoEstado(false);
+    }
+  };
 
   const handleRevertir = async () => {
     const nro = confirmRevertir;
@@ -103,16 +119,23 @@ export default function ModalDetalle({ prestamoId, onClose }) {
             ))}
           </div>
 
-          {hayPendientes && (
-            <div className="px-5 py-3 border-b border-slate-100 bg-white flex-shrink-0">
+          <div className="px-5 py-3 border-b border-slate-100 bg-white flex-shrink-0 flex gap-2">
+            <button
+              onClick={handleEstadoCuenta}
+              disabled={generandoEstado}
+              className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:border-slate-300 active:scale-[0.99] disabled:opacity-50 transition-all inline-flex items-center justify-center gap-2"
+            >
+              <FileText size={16} /> {generandoEstado ? 'Generando…' : 'Estado de cuenta'}
+            </button>
+            {hayPendientes && (
               <button
                 onClick={() => setMostrarPago(true)}
-                className="w-full py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 active:scale-[0.99] shadow-emerald/40 transition-all inline-flex items-center justify-center gap-2"
+                className="flex-1 py-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 active:scale-[0.99] shadow-emerald/40 transition-all inline-flex items-center justify-center gap-2"
               >
                 <Wallet size={16} /> Cobrar monto
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="flex-1 overflow-auto p-5">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">

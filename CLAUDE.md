@@ -8,7 +8,7 @@ Siempre responder en español.
 # RutaCobro — Contexto del proyecto
 
 ## ¿Qué es?
-Sistema de gestión de cartera de préstamos organizados por rutas de cobro. Reemplaza a PlutoFM (AdminLTE 2015). Permite registrar clientes, crear préstamos con cuotas de frecuencia configurable (diaria, semanal, quincenal o mensual), cobrar cuotas en 1 click, enviar comprobantes por WhatsApp y ver métricas en tiempo real. La página **Cobranza del día** (`/cobranza`) lista las cuotas vencidas/de hoy/próximas para cobrar, con recordatorio por WhatsApp y link al mapa de la dirección. La página **Cierre de caja** (`/cierre`, solo admin) muestra la rendición por ruta/cobrador (cobrado − gastos − prestado = neto a rendir) para una fecha o rango, con export a PDF.
+Sistema de gestión de cartera de préstamos organizados por rutas de cobro. Reemplaza a PlutoFM (AdminLTE 2015). Permite registrar clientes, crear préstamos con cuotas de frecuencia configurable (diaria, semanal, quincenal o mensual), cobrar cuotas en 1 click, enviar comprobantes y estados de cuenta por WhatsApp y ver métricas en tiempo real. El estado de cuenta (PDF con el cronograma completo) se genera desde el detalle del préstamo (`ModalDetalle`) vía `src/utils/estadoCuenta.js`. La página **Cobranza del día** (`/cobranza`) lista las cuotas vencidas/de hoy/próximas para cobrar, con recordatorio por WhatsApp y link al mapa de la dirección. La página **Cierre de caja** (`/cierre`, solo admin) muestra la rendición por ruta/cobrador (cobrado − gastos − prestado = neto a rendir) para una fecha o rango, con export a PDF.
 
 ## Stack
 - **Runtime:** Vite 5 + React 18
