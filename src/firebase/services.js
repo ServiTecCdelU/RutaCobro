@@ -43,6 +43,9 @@ const listen = (q, cb, onError) =>
     },
   );
 
+// Milisegundos de un Timestamp de Firestore (0 si todavía está pendiente/serverTimestamp).
+const millis = (ts) => (ts?.toMillis ? ts.toMillis() : 0);
+
 // ── Config del negocio ───────────────────────────────────────────────────────
 
 export const subscribeNegocioConfig = (cb, onError) =>
@@ -397,10 +400,12 @@ export const actualizarMiembro = (uid, data) => updateDoc(memberRef(uid), data);
 
 // ── Notas de cliente ─────────────────────────────────────────────────────────
 
+// Solo filtra por clienteId (índice de campo único, automático) y ordena en el cliente
+// para no requerir un índice compuesto clienteId + creadoEn.
 export const subscribeNotas = (clienteId, cb, onError) =>
   listen(
-    query(col('notas'), where('clienteId', '==', clienteId), orderBy('creadoEn', 'desc')),
-    cb,
+    query(col('notas'), where('clienteId', '==', clienteId)),
+    (notas) => cb([...notas].sort((a, b) => millis(b.creadoEn) - millis(a.creadoEn))),
     onError,
   );
 
