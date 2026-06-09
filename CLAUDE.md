@@ -101,6 +101,7 @@ Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `fireba
 - `cobrarCuota` y `pagarMonto` usan `runTransaction` — actualizan cuota(s) y registran movimiento de forma atómica.
 - `pagarMonto` distribuye el monto recibido sobre cuotas pendientes en orden (parciales → completas), registra `tipo: 'pago-monto'`.
 - `revertirCuota` deshace un cobro: borra el movimiento y desmarca la cuota como pagada (transacción).
+- `refinanciarPrestamo` reestructura el saldo **en el mismo préstamo** (transacción): conserva lo cobrado, reemplaza las cuotas impagas por un cronograma nuevo (nuevo interés/cantidad/frecuencia) sobre el saldo. No crea préstamo nuevo ni mueve caja, por eso no afecta `colocadoHistorico`/capital. Lógica pura en `src/utils/refinanciacion.js`. La "renovación" (préstamo nuevo al finalizar) reusa `ModalNuevoPrestamo` precargado desde el detalle.
 - `DataContext` abre listeners `onSnapshot` al loguearse y los cierra al desloguearse.
 - Métricas completamente derivadas de `prestamos + clientes + rutas` en `useMetricas.js` (sin estado propio).
 - Modales usan `useModal(onClose)` — bloquea scroll del body y cierra con Escape.

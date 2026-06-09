@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { hoy } from '@/utils/calculos';
+import { construirRefinanciacion } from '@/utils/refinanciacion';
 
 // Paths planos — negocio único, sin multi-tenancy
 const col = (name) => collection(db, name);
@@ -157,6 +158,30 @@ export const eliminarPrestamo = async (id) => {
   const movsSnap = await getDocs(query(col('movimientos'), where('prestamoId', '==', id)));
   const allRefs = [...movsSnap.docs.map((d) => d.ref), ref('prestamos', id)];
   await commitInChunks(allRefs);
+};
+
+// Reestructura el saldo del préstamo en una transacción (mismo préstamo, no mueve caja).
+export const refinanciarPrestamo = async (prestamoId, { interes, cuotas, frecuenciaDias }) => {
+  const prestamoRef = ref('prestamos', prestamoId);
+  const hoyStr = hoy();
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(prestamoRef);
+    if (!snap.exists()) throw new Error('Préstamo no encontrado');
+    const prestamo = { id: snap.id, ...snap.data() };
+    const { saldo, cuotasDetalle } = construirRefinanciacion(prestamo, {
+      interes,
+      cuotas,
+      frecuenciaDias,
+      fechaInicio: hoyStr,
+    });
+    tx.update(prestamoRef, {
+      cuotasDetalle,
+      estado: 'activo',
+      refinanciadoEn: hoyStr,
+      refinanciaciones: (prestamo.refinanciaciones ?? 0) + 1,
+    });
+    return { saldo, cuotasNuevas: cuotas };
+  });
 };
 
 export const cobrarCuota = async (prestamoId, nroCuota) => {

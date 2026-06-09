@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle2, Undo2, Wallet, Banknote, FileText } from 'lucide-react';
+import { X, CheckCircle2, Undo2, Wallet, Banknote, FileText, RefreshCw, Plus } from 'lucide-react';
 import { formatMoney, formatFecha } from '@/utils/formatters';
 import { diasDeAtraso, frecuenciaPlural } from '@/utils/calculos';
 import { useApp } from '@/context/AppContext';
@@ -10,14 +10,18 @@ import { construirEstadoCuenta } from '@/utils/estadoCuenta';
 import { compartirComprobante } from '@/utils/compartir';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import ModalPago from '@/components/modals/ModalPago';
+import ModalRefinanciar from '@/components/modals/ModalRefinanciar';
+import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import NotasCliente from '@/components/clientes/NotasCliente';
 
 export default function ModalDetalle({ prestamoId, onClose }) {
-  const { prestamos, clientes, rutas, revertirCuota } = useApp();
+  const { prestamos, clientes, rutas, revertirCuota, puedeEditar } = useApp();
   const toast = useToast();
   const { cobrarCuotaNro } = useCobrar();
   const [confirmRevertir, setConfirmRevertir] = useState(null);
   const [mostrarPago, setMostrarPago] = useState(false);
+  const [mostrarRefinanciar, setMostrarRefinanciar] = useState(false);
+  const [mostrarRenovar, setMostrarRenovar] = useState(false);
   const [generandoEstado, setGenerandoEstado] = useState(false);
   useModal(onClose);
 
@@ -138,6 +142,22 @@ export default function ModalDetalle({ prestamoId, onClose }) {
           </div>
 
           <div className="flex-1 overflow-auto p-5">
+            {puedeEditar && hayPendientes && (
+              <button
+                onClick={() => setMostrarRefinanciar(true)}
+                className="w-full mb-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 font-semibold text-sm hover:bg-violet-100 transition-colors inline-flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={15} /> Refinanciar saldo pendiente
+              </button>
+            )}
+            {puedeEditar && !hayPendientes && prestamo.estado === 'finalizado' && (
+              <button
+                onClick={() => setMostrarRenovar(true)}
+                className="w-full mb-4 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-sm hover:bg-emerald-100 transition-colors inline-flex items-center justify-center gap-2"
+              >
+                <Plus size={15} /> Renovar — nuevo préstamo
+              </button>
+            )}
             <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
               Cronograma
             </div>
@@ -238,6 +258,19 @@ export default function ModalDetalle({ prestamoId, onClose }) {
       )}
 
       {mostrarPago && <ModalPago prestamoId={prestamoId} onClose={() => setMostrarPago(false)} />}
+      {mostrarRefinanciar && (
+        <ModalRefinanciar
+          prestamo={prestamo}
+          cliente={cliente}
+          onClose={() => setMostrarRefinanciar(false)}
+        />
+      )}
+      {mostrarRenovar && (
+        <ModalNuevoPrestamo
+          clienteIdInicial={prestamo.clienteId}
+          onClose={() => setMostrarRenovar(false)}
+        />
+      )}
     </>
   );
 }
