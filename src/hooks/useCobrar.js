@@ -5,11 +5,13 @@ import { useToast } from '@/components/ui/Toast';
 import { formatMoney } from '@/utils/formatters';
 import { construirComprobantePago } from '@/utils/comprobante';
 import { compartirComprobante } from '@/utils/compartir';
+import { calcularPunitorio } from '@/utils/punitorios';
+import { hoy } from '@/utils/calculos';
 
 const DURACION_TOAST_COBRO = 8000;
 
 export function useCobrar() {
-  const { prestamos, clientes, rutas, cobrarCuota, revertirCuota } = useApp();
+  const { prestamos, clientes, rutas, cobrarCuota, revertirCuota, negocioConfig } = useApp();
   const toast = useToast();
   const [cobrando, setCobrando] = useState(false);
 
@@ -48,7 +50,9 @@ export function useCobrar() {
   const toastCobro = useCallback(
     (prestamoId, res, nombreCliente) => {
       toast.success(res.finalizado ? '¡Préstamo finalizado!' : 'Cuota cobrada', {
-        description: `${nombreCliente ?? ''} · Cuota ${res.cuotaNro}/${res.cuotasTotales} · ${formatMoney(res.monto)}`,
+        description: `${nombreCliente ?? ''} · Cuota ${res.cuotaNro}/${res.cuotasTotales} · ${formatMoney(res.monto)}${
+          res.punitorio > 0 ? ` + ${formatMoney(res.punitorio)} punitorio` : ''
+        }`,
         duration: DURACION_TOAST_COBRO,
         action: {
           label: 'Deshacer',
@@ -74,6 +78,17 @@ export function useCobrar() {
     [toast, revertirCuota, enviarComprobante],
   );
 
+  const punitorioDe = useCallback(
+    (prestamoId, nro) => {
+      const p = prestamos.find((pr) => pr.id === prestamoId);
+      const cuota = (p?.cuotasDetalle ?? []).find((c) => c.nro === nro);
+      if (!cuota) return null;
+      const punitorio = calcularPunitorio(cuota, negocioConfig?.punitorio, hoy());
+      return punitorio.monto > 0 ? punitorio : null;
+    },
+    [prestamos, negocioConfig],
+  );
+
   const cobrarProxima = useCallback(
     async (prestamoId) => {
       if (cobrando) return;
@@ -82,7 +97,9 @@ export function useCobrar() {
       if (!proxima) return;
       setCobrando(true);
       try {
-        const res = await cobrarCuota(prestamoId, proxima.nro);
+        const res = await cobrarCuota(prestamoId, proxima.nro, {
+          punitorio: punitorioDe(prestamoId, proxima.nro),
+        });
         const cliente = clientes.find((c) => c.id === p.clienteId);
         toastCobro(prestamoId, res, cliente?.nombre);
         return res;
@@ -92,7 +109,7 @@ export function useCobrar() {
         setCobrando(false);
       }
     },
-    [cobrando, prestamos, clientes, cobrarCuota, toast, toastCobro],
+    [cobrando, prestamos, clientes, cobrarCuota, toast, toastCobro, punitorioDe],
   );
 
   const cobrarCuotaNro = useCallback(
@@ -100,7 +117,9 @@ export function useCobrar() {
       if (cobrando) return;
       setCobrando(true);
       try {
-        const res = await cobrarCuota(prestamoId, nro);
+        const res = await cobrarCuota(prestamoId, nro, {
+          punitorio: punitorioDe(prestamoId, nro),
+        });
         toastCobro(prestamoId, res, nombreCliente);
         return res;
       } catch (err) {
@@ -109,7 +128,7 @@ export function useCobrar() {
         setCobrando(false);
       }
     },
-    [cobrando, cobrarCuota, toast, toastCobro],
+    [cobrando, cobrarCuota, toast, toastCobro, punitorioDe],
   );
 
   return { cobrarProxima, cobrarCuotaNro, cobrando };

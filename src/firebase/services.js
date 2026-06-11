@@ -14,6 +14,7 @@ import {
   runTransaction,
   getDocs,
   writeBatch,
+  limit,
 } from 'firebase/firestore';
 import { db } from './config';
 import { hoy } from '@/utils/calculos';
@@ -25,6 +26,27 @@ const ref = (name, id) => doc(db, name, id);
 const configRef = () => doc(db, 'config', 'negocio');
 const inviteRef = (token) => doc(db, 'invitaciones', token);
 const memberRef = (uid) => doc(db, 'usuarios', uid);
+
+// Autor de las operaciones (lo setea AuthContext al loguear/desloguear).
+// Se estampa en movimientos y en el registro de auditoría.
+let autorActual = null;
+export const setAutorActual = (autor) => {
+  autorActual = autor;
+};
+const autor = () => ({
+  autorUid: autorActual?.uid ?? null,
+  autorEmail: autorActual?.email ?? null,
+});
+
+// Registro de auditoría de acciones sensibles (inmutable; lo lee solo el admin).
+const registrarAuditoria = (tx, data) =>
+  tx.set(doc(col('auditoria')), { ...data, ...autor(), fecha: hoy(), creadoEn: serverTimestamp() });
+
+const auditar = (data) =>
+  addDoc(col('auditoria'), { ...data, ...autor(), fecha: hoy(), creadoEn: serverTimestamp() });
+
+export const subscribeAuditoria = (cb, onError, cantidad = 100) =>
+  listen(query(col('auditoria'), orderBy('creadoEn', 'desc'), limit(cantidad)), cb, onError);
 
 const randomToken = () => {
   const arr = new Uint8Array(16);
@@ -136,6 +158,7 @@ const commitInChunks = async (refs) => {
 };
 
 export const eliminarClienteCompleto = async (clienteId) => {
+  const clienteSnap = await getDoc(ref('clientes', clienteId));
   const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
   const movsSnap = await getDocs(query(col('movimientos'), where('clienteId', '==', clienteId)));
   const allRefs = [
@@ -144,6 +167,11 @@ export const eliminarClienteCompleto = async (clienteId) => {
     ref('clientes', clienteId),
   ];
   await commitInChunks(allRefs);
+  await auditar({
+    accion: 'eliminar-cliente',
+    clienteId,
+    detalle: `Cliente "${clienteSnap.data()?.nombre ?? clienteId}" eliminado con ${prestamosSnap.size} préstamo(s) y ${movsSnap.size} movimiento(s)`,
+  });
 };
 
 // ── Préstamos ─────────────────────────────────────────────────────────────────
@@ -158,9 +186,17 @@ export const crearPrestamo = (data) =>
 export const actualizarPrestamo = (id, data) => updateDoc(ref('prestamos', id), data);
 
 export const eliminarPrestamo = async (id) => {
+  const prestamoSnap = await getDoc(ref('prestamos', id));
   const movsSnap = await getDocs(query(col('movimientos'), where('prestamoId', '==', id)));
   const allRefs = [...movsSnap.docs.map((d) => d.ref), ref('prestamos', id)];
   await commitInChunks(allRefs);
+  await auditar({
+    accion: 'eliminar-prestamo',
+    prestamoId: id,
+    clienteId: prestamoSnap.data()?.clienteId ?? null,
+    monto: prestamoSnap.data()?.monto ?? null,
+    detalle: `Préstamo eliminado junto con ${movsSnap.size} movimiento(s)`,
+  });
 };
 
 // Reestructura el saldo del préstamo en una transacción (mismo préstamo, no mueve caja).
@@ -183,11 +219,20 @@ export const refinanciarPrestamo = async (prestamoId, { interes, cuotas, frecuen
       refinanciadoEn: hoyStr,
       refinanciaciones: (prestamo.refinanciaciones ?? 0) + 1,
     });
+    registrarAuditoria(tx, {
+      accion: 'refinanciar',
+      prestamoId,
+      clienteId: prestamo.clienteId ?? null,
+      monto: saldo,
+      detalle: `Saldo refinanciado en ${cuotas} cuotas (interés ${interes}%)`,
+    });
     return { saldo, cuotasNuevas: cuotas };
   });
 };
 
-export const cobrarCuota = async (prestamoId, nroCuota) => {
+// `punitorio` ({ monto, dias }) es opcional: si viene con monto > 0 se registra
+// un movimiento extra tipo 'punitorio' en la misma transacción (entra al cierre).
+export const cobrarCuota = async (prestamoId, nroCuota, { punitorio } = {}) => {
   const prestamoRef = ref('prestamos', prestamoId);
   const movRef = doc(col('movimientos'));
   const hoyStr = hoy();
@@ -221,12 +266,29 @@ export const cobrarCuota = async (prestamoId, nroCuota) => {
       monto: faltaPagar,
       fecha: hoyStr,
       tipo: 'cuota',
+      ...autor(),
       creadoEn: serverTimestamp(),
     });
+
+    const montoPunitorio = punitorio?.monto > 0 ? Math.round(punitorio.monto) : 0;
+    if (montoPunitorio > 0) {
+      tx.set(doc(col('movimientos')), {
+        prestamoId,
+        clienteId: prestamo.clienteId,
+        cuotaNro: nroCuota,
+        monto: montoPunitorio,
+        fecha: hoyStr,
+        tipo: 'punitorio',
+        diasAtraso: punitorio.dias ?? null,
+        ...autor(),
+        creadoEn: serverTimestamp(),
+      });
+    }
 
     return {
       movId: movRef.id,
       monto: faltaPagar,
+      punitorio: montoPunitorio,
       cuotaNro: nroCuota,
       cuotasPagadas: cuotas.filter((c) => c.pagada).length,
       cuotasTotales: cuotas.length,
@@ -289,6 +351,7 @@ export const pagarMonto = async (prestamoId, montoPago) => {
         monto: montoAplicado,
         fecha: hoyStr,
         tipo: 'pago-monto',
+        ...autor(),
         creadoEn: serverTimestamp(),
       });
     }
@@ -518,9 +581,22 @@ export const revertirCuota = async (prestamoId, nroCuota) => {
     });
 
     // Solo borrar movimientos que aún existen
+    let montoRevertido = 0;
     for (const movSnap of movSnaps) {
-      if (movSnap.exists()) tx.delete(movSnap.ref);
+      if (movSnap.exists()) {
+        montoRevertido += movSnap.data().monto ?? 0;
+        tx.delete(movSnap.ref);
+      }
     }
+
+    registrarAuditoria(tx, {
+      accion: 'revertir-cuota',
+      prestamoId,
+      clienteId: prestamo.clienteId ?? null,
+      cuotaNro: nroCuota,
+      monto: montoRevertido,
+      detalle: `Cobro de la cuota ${nroCuota} revertido`,
+    });
 
     return { nroCuota, movsEliminados: movSnaps.filter((s) => s.exists()).length };
   });
