@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { X, CheckCircle2, Undo2, Wallet, Banknote, FileText, RefreshCw, Plus } from 'lucide-react';
 import { formatMoney, formatFecha } from '@/utils/formatters';
-import { diasDeAtraso, frecuenciaPlural } from '@/utils/calculos';
+import { diasDeAtraso, frecuenciaPlural, hoy } from '@/utils/calculos';
+import { punitorioDePrestamo } from '@/utils/punitorios';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useCobrar } from '@/hooks/useCobrar';
@@ -17,7 +18,7 @@ import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import NotasCliente from '@/components/clientes/NotasCliente';
 
 export default function ModalDetalle({ prestamoId, onClose }) {
-  const { prestamos, clientes, rutas, revertirCuota, puedeEditar } = useApp();
+  const { prestamos, clientes, rutas, revertirCuota, puedeEditar, negocioConfig } = useApp();
   const toast = useToast();
   const { cobrarCuotaNro } = useCobrar();
   const [confirmRevertir, setConfirmRevertir] = useState(null);
@@ -50,6 +51,7 @@ export default function ModalDetalle({ prestamoId, onClose }) {
   const totalPagado = cuotas.reduce((s, c) => s + (c.pagado ?? (c.pagada ? c.monto : 0)), 0);
   const totalDeuda = cuotas.reduce((s, c) => s + c.monto, 0) - totalPagado;
   const hayPendientes = cuotas.some((c) => !c.pagada);
+  const punitorioTotal = punitorioDePrestamo(prestamo, negocioConfig?.punitorio, hoy());
 
   const handleCobrar = (nro) => cobrarCuotaNro(prestamo.id, nro, cliente?.nombre);
 
@@ -117,7 +119,11 @@ export default function ModalDetalle({ prestamoId, onClose }) {
             {[
               { label: 'Capital', value: formatMoney(prestamo.monto), color: 'text-slate-900' },
               { label: 'Cobrado', value: formatMoney(totalPagado), color: 'text-emerald-700' },
-              { label: 'Pendiente', value: formatMoney(totalDeuda), color: 'text-rose-700' },
+              {
+                label: punitorioTotal > 0 ? 'Pendiente + punit.' : 'Pendiente',
+                value: formatMoney(totalDeuda + punitorioTotal),
+                color: 'text-rose-700',
+              },
             ].map(({ label, value, color }) => (
               <div key={label}>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">

@@ -62,6 +62,9 @@ export const subscribeNegocioConfig = (cb, onError) =>
 export const actualizarCapitalTotal = (capitalTotal) =>
   setDoc(configRef(), { capitalTotal }, { merge: true });
 
+export const actualizarPunitorio = (punitorio) =>
+  setDoc(configRef(), { punitorio }, { merge: true });
+
 // ── Listeners en tiempo real ──────────────────────────────────────────────────
 
 export const subscribeRutas = (cb, onError) => listen(col('rutas'), cb, onError);

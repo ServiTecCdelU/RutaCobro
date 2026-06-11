@@ -1,11 +1,108 @@
 import { useState } from 'react';
-import { Settings, Building2, Palette, Save, MessageCircle, Megaphone } from 'lucide-react';
+import {
+  Settings,
+  Building2,
+  Palette,
+  Save,
+  MessageCircle,
+  Megaphone,
+  TimerReset,
+} from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { SERVITEC, servitecWhatsApp } from '@/utils/servitec';
+import { normalizarPunitorio } from '@/utils/punitorios';
+
+function CardPunitorios() {
+  const { negocioConfig, actualizarPunitorio } = useApp();
+  const toast = useToast();
+  const [form, setForm] = useState(() => normalizarPunitorio(negocioConfig?.punitorio));
+  const [guardando, setGuardando] = useState(false);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleGuardar = async () => {
+    setGuardando(true);
+    try {
+      await actualizarPunitorio(normalizarPunitorio(form));
+      toast.success('Punitorios guardados');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo guardar', { description: err.message });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <TimerReset size={18} />
+          </div>
+          <div>
+            <h2 className="font-bold text-slate-900">Punitorios por mora</h2>
+            <p className="text-xs text-slate-500">
+              Recargo automático sobre cuotas vencidas (se muestra en Cobranza y el detalle)
+            </p>
+          </div>
+        </div>
+        <button
+          role="switch"
+          aria-checked={form.activo}
+          aria-label="Activar punitorios"
+          onClick={() => set('activo', !form.activo)}
+          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+            form.activo ? 'bg-emerald-500' : 'bg-slate-300'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+              form.activo ? 'left-[22px]' : 'left-0.5'
+            }`}
+          />
+        </button>
+      </div>
+
+      {form.activo && (
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            ['tasaDiariaPct', '% por día', 'Sobre el saldo de la cuota vencida'],
+            ['diasGracia', 'Días de gracia', 'Atraso sin recargo'],
+            ['topePct', 'Tope %', 'Máximo recargo (% de la cuota)'],
+          ].map(([campo, label, ayuda]) => (
+            <div key={campo}>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">
+                {label}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={form[campo]}
+                onChange={(e) => set(campo, e.target.value === '' ? '' : Number(e.target.value))}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">{ayuda}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={handleGuardar}
+        disabled={guardando}
+        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-gradient text-white text-sm font-semibold hover:opacity-95 active:scale-[0.98] disabled:opacity-50 shadow-brand-sm hover:shadow-brand transition-all flex items-center justify-center gap-2"
+      >
+        <Save size={16} /> {guardando ? 'Guardando…' : 'Guardar punitorios'}
+      </button>
+    </div>
+  );
+}
 
 export default function Configuracion() {
-  const { user } = useApp();
+  const { user, esAdmin } = useApp();
   const toast = useToast();
 
   const [nombreNegocio, setNombreNegocio] = useState('');
@@ -84,6 +181,8 @@ export default function Configuracion() {
           <Save size={16} /> Guardar cambios
         </button>
       </div>
+
+      {esAdmin && <CardPunitorios />}
 
       {/* SERVITEC — recomendá el sistema */}
       <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card overflow-hidden">

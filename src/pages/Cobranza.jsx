@@ -13,6 +13,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney, formatFecha, formatFechaLarga, linkWhatsApp } from '@/utils/formatters';
 import { hoy, sumarDias } from '@/utils/calculos';
 import { construirItemsCobranza, mensajeRecordatorio, linkMapa } from '@/utils/cobranza';
+import { calcularPunitorio } from '@/utils/punitorios';
 import { useCobrar } from '@/hooks/useCobrar';
 import { usePaginacion } from '@/hooks/usePaginacion';
 import MetricCard from '@/components/ui/MetricCard';
@@ -45,7 +46,7 @@ function Avatar({ nombre, color }) {
 }
 
 export default function Cobranza() {
-  const { prestamos, clientes, rutas, puedeEditar } = useApp();
+  const { prestamos, clientes, rutas, puedeEditar, negocioConfig } = useApp();
   const { cobrarCuotaNro, cobrando } = useCobrar();
 
   const [filtro, setFiltro] = useState('para_hoy');
@@ -190,6 +191,7 @@ export default function Cobranza() {
               const enMora = it.categoria === 'vencida';
               const tieneMapa = Boolean(linkMapa(it.cliente?.direccion));
               const tieneWpp = Boolean(it.cliente?.tel);
+              const punitorio = calcularPunitorio(it.cuota, negocioConfig?.punitorio, hoyStr);
               return (
                 <div
                   key={it.prestamo.id}
@@ -235,6 +237,14 @@ export default function Cobranza() {
                     <div className="font-bold text-slate-900 dark:text-slate-100 text-sm tabular-nums">
                       {formatMoney(it.pendiente)}
                     </div>
+                    {punitorio.monto > 0 && (
+                      <div
+                        className="text-[10px] font-semibold text-rose-500 tabular-nums leading-none"
+                        title={`Punitorio por ${punitorio.dias} día(s) de atraso`}
+                      >
+                        + {formatMoney(punitorio.monto)} punit.
+                      </div>
+                    )}
                     <div className="flex items-center gap-1">
                       {tieneMapa && (
                         <button
