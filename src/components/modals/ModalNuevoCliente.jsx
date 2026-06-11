@@ -3,6 +3,7 @@ import { X, AlertCircle } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useModal } from '@/hooks/useModal';
+import BcraPanel from '@/components/ui/BcraPanel';
 
 const VACIO = { nombre: '', dni: '', tel: '', direccion: '', rutaId: '' };
 
@@ -24,6 +25,7 @@ export default function ModalNuevoCliente({ onClose, cliente }) {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [bcra, setBcra] = useState(cliente?.bcra ?? null);
   useModal(onClose);
 
   useEffect(() => {
@@ -32,7 +34,10 @@ export default function ModalNuevoCliente({ onClose, cliente }) {
     }
   }, [rutas, form.rutaId]);
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    if (k === 'dni') setBcra(null);
+    setForm((f) => ({ ...f, [k]: v }));
+  };
 
   const handleGuardar = async () => {
     setError('');
@@ -58,11 +63,14 @@ export default function ModalNuevoCliente({ onClose, cliente }) {
     }
     setLoading(true);
     try {
+      // bcra null explícito: si cambió el DNI, borra la verificación vieja del doc
+      const datos =
+        esEdicion && cliente?.bcra ? { ...form, bcra } : bcra ? { ...form, bcra } : form;
       if (esEdicion) {
-        await actualizarCliente(cliente.id, form);
+        await actualizarCliente(cliente.id, datos);
         toast.success('Cliente actualizado');
       } else {
-        await crearCliente(form);
+        await crearCliente(datos);
         toast.success('Cliente creado', { description: form.nombre });
       }
       onClose();
@@ -162,6 +170,8 @@ export default function ModalNuevoCliente({ onClose, cliente }) {
                   />
                 </div>
               </div>
+
+              <BcraPanel dni={form.dni} bcraGuardado={bcra} onResultado={setBcra} />
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-600 mb-2 block">

@@ -30,7 +30,7 @@ src/
 ├── components/
 │   ├── layout/     Header (nav + hamburger mobile) + Layout (bottom nav mobile)
 │   ├── ui/         MetricCard, RutaSelector, Toast, EmptyState, ConfirmDialog, ErrorBanner,
-│   │               BusquedaGlobal, Paginacion, ActionMenu, ScoreBadge
+│   │               BusquedaGlobal, Paginacion, ActionMenu, ScoreBadge, BcraPanel
 │   ├── dashboard/  BarChart, RutaPerformance, CuotasHoy, MoraChart
 │   ├── clientes/   ClienteCard, NotasCliente
 │   └── modals/     ModalDetalle, ModalNuevoPrestamo, ModalNuevoCliente, ModalPago,
@@ -113,6 +113,7 @@ Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `fireba
 - **Cobranza del día** (`cobranza.js` + `/cobranza`): `construirItemsCobranza` arma la lista de próximas cuotas a cobrar por urgencia. Reusa `useCobrar`.
 - **Cierre de caja** (`cierre.js` + `/cierre`, admin): `construirCierre` calcula por ruta cobrado/gastos/prestado/neto y la **comisión** del cobrador (`usuarios.comision` % × cobrado). Export PDF con `jspdf-autotable`.
 - Score de riesgo del cliente (`src/utils/scoreCliente.js`): derivado del historial de pagos (puntualidad, mora actual, refinanciaciones, préstamos finalizados). Categorías: Excelente/Bueno/Regular/Riesgoso/Nuevo. Se muestra con `ScoreBadge` en el detalle del préstamo y al elegir cliente en el alta.
+- **Verificación crediticia BCRA** (`src/utils/bcra.js` + `BcraPanel`): consulta la Central de Deudores del BCRA (`api.bcra.gob.ar`, pública, sin auth, con CORS) por CUIT o por DNI (deriva CUILs candidatos 20/27/23/24 con dígito verificador y los prueba en orden). El 404 de la API significa "sin registros", no error. Los montos del BCRA vienen en **miles de pesos** (se convierten a pesos en `resumirDeudas`). Situación 1=normal, 2=riesgo bajo, 3-5=riesgo alto/irrecuperable. El panel está en `ModalNuevoCliente` (bajo el DNI) y `ModalNuevoPrestamo` (junto al ScoreBadge); el último resultado se persiste en `clientes/{id}.bcra` (`{ fecha, cuit, peorSituacion, deudaTotal, ... }`) para no re-consultar. Complementa al score interno: el score mide historial con el negocio, el BCRA mide historial con el sistema financiero.
 - Modales usan `useModal(onClose)` — bloquea scroll del body y cierra con Escape.
 - Modales full-screen en mobile (`items-end`), centrados en desktop (`sm:items-center`).
 - Bottom tab bar solo en mobile (`md:hidden`), nav horizontal en desktop.

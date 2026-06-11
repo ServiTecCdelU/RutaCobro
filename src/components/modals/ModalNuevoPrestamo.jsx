@@ -6,10 +6,19 @@ import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useModal } from '@/hooks/useModal';
 import ScoreBadge from '@/components/ui/ScoreBadge';
+import BcraPanel from '@/components/ui/BcraPanel';
 
 export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
-  const { clientes, rutas, prestamos, crearPrestamo, esCobrador, rutaIdAsignada, userDoc } =
-    useApp();
+  const {
+    clientes,
+    rutas,
+    prestamos,
+    crearPrestamo,
+    actualizarCliente,
+    esCobrador,
+    rutaIdAsignada,
+    userDoc,
+  } = useApp();
   const toast = useToast();
   const [clienteId, setClienteId] = useState(clienteIdInicial ?? '');
   const [monto, setMonto] = useState(100000);
@@ -159,9 +168,19 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
                 })}
               </select>
               {clienteId && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                  <ScoreBadge prestamos={prestamos.filter((p) => p.clienteId === clienteId)} />
-                  <span>Historial del cliente</span>
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <ScoreBadge prestamos={prestamos.filter((p) => p.clienteId === clienteId)} />
+                    <span>Historial del cliente</span>
+                  </div>
+                  <BcraPanel
+                    key={clienteId}
+                    dni={clientes.find((c) => c.id === clienteId)?.dni}
+                    bcraGuardado={clientes.find((c) => c.id === clienteId)?.bcra}
+                    onResultado={(bcra) =>
+                      actualizarCliente(clienteId, { bcra }).catch(console.error)
+                    }
+                  />
                 </div>
               )}
             </div>
