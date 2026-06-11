@@ -16,6 +16,7 @@ import ErrorBanner from '@/components/ui/ErrorBanner';
 import BarChart from '@/components/dashboard/BarChart';
 import RutaPerformance from '@/components/dashboard/RutaPerformance';
 import CuotasHoy from '@/components/dashboard/CuotasHoy';
+import ProyeccionCaja from '@/components/dashboard/ProyeccionCaja';
 import Onboarding from '@/components/Onboarding';
 import { formatMoney, formatFechaLarga } from '@/utils/formatters';
 import { hoy } from '@/utils/calculos';
@@ -273,6 +274,11 @@ export default function Dashboard() {
         </div>
         <RutaPerformance porRuta={m.porRuta} />
       </div>
+
+      {/* Proyección de cobranza */}
+      {prestamos.length > 0 && (
+        <ProyeccionCaja prestamos={prestamos} clientes={clientes} rutaActiva={rutaActiva} />
+      )}
 
       {/* Cuotas del día */}
       {prestamos.length > 0 && <CuotasHoy rutaActiva={rutaActiva} />}
