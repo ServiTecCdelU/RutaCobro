@@ -107,5 +107,13 @@ service cloud.firestore {
     match /gastos/{doc} {
       allow read, write: if isAuth();
     }
+
+    // ── Auditoría ────────────────────────────────────────────────────────────
+    // Registro inmutable de acciones sensibles; solo el admin lo lee.
+    match /auditoria/{doc} {
+      allow create: if isAuth();
+      allow read: if esAdmin();
+      allow update, delete: if false;
+    }
   }
 }

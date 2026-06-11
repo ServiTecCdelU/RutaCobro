@@ -17,6 +17,7 @@ import { formatMoney } from '@/utils/formatters';
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import ActividadReciente from '@/components/equipo/ActividadReciente';
 
 export default function Equipo() {
   const {
@@ -642,6 +643,9 @@ export default function Equipo() {
           </div>
         )}
       </div>
+
+      {/* Auditoría de acciones sensibles */}
+      <ActividadReciente />
 
       {/* Modal editar monto de miembro */}
       {editandoMiembro && (

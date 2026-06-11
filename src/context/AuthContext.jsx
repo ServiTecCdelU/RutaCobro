@@ -8,6 +8,7 @@ import {
   getExistingAdmin,
   repairAdminDoc,
   reclaimAdmin,
+  setAutorActual,
 } from '@/firebase/services';
 
 const AuthContext = createContext(null);
@@ -18,7 +19,10 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => setUser(u ?? null));
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u ?? null);
+      setAutorActual(u ? { uid: u.uid, email: u.email ?? '' } : null);
+    });
   }, []);
 
   useEffect(() => {

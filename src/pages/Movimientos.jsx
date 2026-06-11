@@ -354,11 +354,17 @@ export default function Movimientos() {
                           Parcial
                         </span>
                       )}
+                      {m.tipo === 'punitorio' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 flex-shrink-0">
+                          Punitorio
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-500 tabular-nums">
                       Cuota {m.cuotaNro}
                       {prestamo ? `/${prestamo.cuotas}` : ''} · {m.ruta?.nombre ?? 'Sin ruta'} ·{' '}
                       {formatFecha(m.fecha)}
+                      {m.autorEmail ? ` · ${m.autorEmail}` : ''}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
