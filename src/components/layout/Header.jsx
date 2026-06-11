@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Banknote, Plus, LogOut, Menu, X, Users2, Moon, Sun } from 'lucide-react';
+import { Banknote, Plus, LogOut, Menu, X, Users2, Moon, Sun, Settings } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/firebase/config';
 import { useApp } from '@/context/AppContext';
@@ -78,6 +78,11 @@ export default function Header({ onNuevoPrestamo }) {
             {esAdmin && (
               <NavLink to="/equipo" className={navLinkClass}>
                 Equipo
+              </NavLink>
+            )}
+            {esAdmin && (
+              <NavLink to="/config" className={navLinkClass} aria-label="Configuración">
+                <Settings size={16} />
               </NavLink>
             )}
           </nav>
@@ -195,6 +200,13 @@ export default function Header({ onNuevoPrestamo }) {
             <NavLink to="/equipo" className={navLinkClass} onClick={() => setMenuOpen(false)}>
               <span className="inline-flex items-center gap-2">
                 <Users2 size={14} /> Equipo
+              </span>
+            </NavLink>
+          )}
+          {esAdmin && (
+            <NavLink to="/config" className={navLinkClass} onClick={() => setMenuOpen(false)}>
+              <span className="inline-flex items-center gap-2">
+                <Settings size={14} /> Configuración
               </span>
             </NavLink>
           )}

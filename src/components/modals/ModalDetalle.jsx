@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Plus,
   FileSignature,
+  Share2,
 } from 'lucide-react';
 import { formatMoney, formatFecha } from '@/utils/formatters';
 import { diasDeAtraso, frecuenciaPlural, hoy } from '@/utils/calculos';
@@ -18,6 +19,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useCobrar } from '@/hooks/useCobrar';
 import { useModal } from '@/hooks/useModal';
 import { construirEstadoCuenta } from '@/utils/estadoCuenta';
+import { construirComprobantePago } from '@/utils/comprobante';
 import { compartirComprobante } from '@/utils/compartir';
 import { scoreCliente } from '@/utils/scoreCliente';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -75,6 +77,27 @@ export default function ModalDetalle({ prestamoId, onClose }) {
       toast.error('No se pudo generar el estado de cuenta', { description: err.message });
     } finally {
       setGenerandoEstado(false);
+    }
+  };
+
+  const handleReenviarComprobante = async (c) => {
+    try {
+      const resultado = {
+        monto: c.pagado ?? c.monto,
+        cuotaNro: c.nro,
+        cuotasPagadas: cuotas.filter((x) => x.pagada).length,
+        cuotasTotales: cuotas.length,
+        finalizado: prestamo.estado === 'finalizado',
+      };
+      const { file, mensaje, nombreArchivo } = await construirComprobantePago({
+        cliente,
+        prestamo,
+        ruta,
+        resultado,
+      });
+      await compartirComprobante({ file, mensaje, telefono: cliente?.tel, nombreArchivo });
+    } catch (err) {
+      toast.error('No se pudo enviar el comprobante', { description: err.message });
     }
   };
 
@@ -254,6 +277,14 @@ export default function ModalDetalle({ prestamoId, onClose }) {
                     </div>
                     {c.pagada ? (
                       <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleReenviarComprobante(c)}
+                          className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-emerald-600 text-xs font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-colors inline-flex items-center gap-1"
+                          title="Reenviar comprobante por WhatsApp"
+                          aria-label="Reenviar comprobante por WhatsApp"
+                        >
+                          <Share2 size={12} />
+                        </button>
                         <button
                           onClick={() => handleRecibo(c)}
                           className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 hover:text-slate-900 transition-colors inline-flex items-center gap-1"
