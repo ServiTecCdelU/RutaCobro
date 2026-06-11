@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { X, CheckCircle2, Undo2, Wallet, Banknote, FileText, RefreshCw, Plus } from 'lucide-react';
+import {
+  X,
+  CheckCircle2,
+  Undo2,
+  Wallet,
+  Banknote,
+  FileText,
+  RefreshCw,
+  Plus,
+  FileSignature,
+} from 'lucide-react';
 import { formatMoney, formatFecha } from '@/utils/formatters';
 import { diasDeAtraso, frecuenciaPlural, hoy } from '@/utils/calculos';
 import { punitorioDePrestamo } from '@/utils/punitorios';
@@ -65,6 +75,20 @@ export default function ModalDetalle({ prestamoId, onClose }) {
       toast.error('No se pudo generar el estado de cuenta', { description: err.message });
     } finally {
       setGenerandoEstado(false);
+    }
+  };
+
+  const handleContrato = async () => {
+    try {
+      const { generarContrato } = await import('@/utils/contrato');
+      await generarContrato({
+        cliente,
+        prestamo,
+        ruta,
+        punitorioConfig: negocioConfig?.punitorio,
+      });
+    } catch (err) {
+      toast.error('No se pudo generar el contrato', { description: err.message });
     }
   };
 
@@ -143,6 +167,13 @@ export default function ModalDetalle({ prestamoId, onClose }) {
               className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:border-slate-300 active:scale-[0.99] disabled:opacity-50 transition-all inline-flex items-center justify-center gap-2"
             >
               <FileText size={16} /> {generandoEstado ? 'Generando…' : 'Estado de cuenta'}
+            </button>
+            <button
+              onClick={handleContrato}
+              title="Contrato de préstamo para firmar (PDF)"
+              className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 font-semibold text-sm hover:border-slate-300 active:scale-[0.99] transition-all inline-flex items-center justify-center gap-2"
+            >
+              <FileSignature size={16} /> Contrato
             </button>
             {hayPendientes && (
               <button
