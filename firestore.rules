@@ -3,46 +3,109 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regla simple: cualquier usuario autenticado puede leer y escribir.
-    // La lógica de roles se maneja en el frontend.
-    // Movimientos no se pueden editar (solo crear y borrar).
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    // El rol vive en /usuarios/{uid}. esAdmin() cuesta 1 lectura por operación.
 
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function esAdmin() {
+      return isAuth()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+    }
+
+    function configNegocio() {
+      return get(/databases/$(database)/documents/config/negocio);
+    }
+
+    // Bootstrap/reclaim/repair de admin: solo si todavía no hay admin asignado
+    // o si el adminUid ya es el propio usuario.
+    function puedeSerAdmin() {
+      return !exists(/databases/$(database)/documents/config/negocio)
+        || configNegocio().data.adminUid == null
+        || configNegocio().data.adminUid == request.auth.uid;
+    }
+
+    // Alta por invitación: el doc propio debe referenciar un token vigente
+    // y copiar el rol de esa invitación (no se puede auto-asignar otro rol).
+    function invitacionValida() {
+      return request.resource.data.inviteToken is string
+        && exists(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteToken))
+        && request.resource.data.rol ==
+           get(/databases/$(database)/documents/invitaciones/$(request.resource.data.inviteToken)).data.rol;
+    }
+
+    // ── Config del negocio ───────────────────────────────────────────────────
+    // Solo admin escribe; el bootstrap inicial requiere quedar como adminUid propio.
     match /config/{doc} {
-      allow read, write: if request.auth != null;
-      allow delete:      if false;
+      allow read: if isAuth();
+      allow create, update: if esAdmin()
+        || (isAuth() && request.resource.data.adminUid == request.auth.uid && puedeSerAdmin());
+      allow delete: if false;
     }
 
+    // ── Membresía y roles ────────────────────────────────────────────────────
+    // Nadie puede auto-escalar: el doc propio solo se crea como admin legítimo
+    // (bootstrap) o con una invitación válida. El resto lo gestiona el admin.
     match /usuarios/{uid} {
-      allow read, write: if request.auth != null;
+      allow get: if isAuth() && (request.auth.uid == uid || esAdmin());
+      allow list: if esAdmin();
+      allow create, update: if esAdmin()
+        || (isAuth() && request.auth.uid == uid
+            && (invitacionValida()
+                || (request.resource.data.rol == 'admin' && puedeSerAdmin())));
+      allow delete: if esAdmin();
     }
 
+    // ── Invitaciones ─────────────────────────────────────────────────────────
+    // get por token (inadivinable) para aceptarla; listar solo admin.
+    // delete autenticado: la invitación se consume en la misma transacción.
+    match /invitaciones/{token} {
+      allow get: if isAuth();
+      allow list: if esAdmin();
+      allow create, update: if esAdmin();
+      allow delete: if isAuth();
+    }
+
+    // ── Rutas ────────────────────────────────────────────────────────────────
     match /rutas/{doc} {
-      allow read, write: if request.auth != null;
+      allow read: if isAuth();
+      allow write: if esAdmin();
     }
 
+    // ── Clientes ─────────────────────────────────────────────────────────────
+    // Cobradores dan de alta y editan; borrar (con su historial) es de admin.
     match /clientes/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, create, update: if isAuth();
+      allow delete: if esAdmin();
     }
 
+    // ── Préstamos ────────────────────────────────────────────────────────────
+    // Cobrar/refinanciar son updates; borrar un préstamo es de admin.
     match /prestamos/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, create, update: if isAuth();
+      allow delete: if esAdmin();
     }
 
+    // ── Movimientos ──────────────────────────────────────────────────────────
+    // Inmutables: solo crear y borrar (revertir cobro / borrado por admin).
     match /movimientos/{doc} {
-      allow read, create, delete: if request.auth != null;
+      allow read, create, delete: if isAuth();
       allow update: if false;
     }
 
+    // ── Notas ────────────────────────────────────────────────────────────────
     match /notas/{doc} {
-      allow read, write: if request.auth != null;
+      allow read, create: if isAuth();
+      allow update: if false;
+      allow delete: if esAdmin();
     }
 
+    // ── Gastos ───────────────────────────────────────────────────────────────
     match /gastos/{doc} {
-      allow read, write: if request.auth != null;
-    }
-
-    match /invitaciones/{token} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuth();
     }
   }
 }

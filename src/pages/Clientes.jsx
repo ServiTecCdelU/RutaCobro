@@ -16,7 +16,8 @@ import ModalNuevoCliente from '@/components/modals/ModalNuevoCliente';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 
 export default function Clientes() {
-  const { clientes, prestamos, rutas, eliminarCliente, eliminarPrestamo, error } = useApp();
+  const { clientes, prestamos, rutas, eliminarCliente, eliminarPrestamo, esAdmin, error } =
+    useApp();
   const toast = useToast();
   const { cobrarProxima } = useCobrar();
 
@@ -215,8 +216,8 @@ export default function Clientes() {
                       onPrestar={setModalPrestamo}
                       onDetalle={setModalDetalle}
                       onEditar={(c) => setModalCliente({ editar: c })}
-                      onEliminar={setConfirmBorrarCliente}
-                      onEliminarPrestamo={setConfirmBorrarPrestamo}
+                      onEliminar={esAdmin ? setConfirmBorrarCliente : null}
+                      onEliminarPrestamo={esAdmin ? setConfirmBorrarPrestamo : null}
                     />
                   );
                 })}

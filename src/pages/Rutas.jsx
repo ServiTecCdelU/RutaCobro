@@ -10,7 +10,7 @@ import ModalRuta from '@/components/modals/ModalRuta';
 import { useToast } from '@/components/ui/Toast';
 
 export default function Rutas() {
-  const { rutas, clientes, prestamos, eliminarRuta, error } = useApp();
+  const { rutas, clientes, prestamos, eliminarRuta, esAdmin, error } = useApp();
   const toast = useToast();
   const [modal, setModal] = useState(null); // null | { nueva: true } | { editar: ruta }
   const [confirmBorrar, setConfirmBorrar] = useState(null);
@@ -69,12 +69,14 @@ export default function Rutas() {
           </h1>
           <p className="text-sm text-slate-500 mt-1 tabular-nums">{rutas.length} rutas activas</p>
         </div>
-        <button
-          onClick={() => setModal({ nueva: true })}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-gradient text-white text-sm font-semibold hover:opacity-95 active:scale-[0.98] shadow-brand-sm hover:shadow-brand transition-all"
-        >
-          <Plus size={16} /> <span className="hidden sm:inline">Nueva ruta</span>
-        </button>
+        {esAdmin && (
+          <button
+            onClick={() => setModal({ nueva: true })}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-gradient text-white text-sm font-semibold hover:opacity-95 active:scale-[0.98] shadow-brand-sm hover:shadow-brand transition-all"
+          >
+            <Plus size={16} /> <span className="hidden sm:inline">Nueva ruta</span>
+          </button>
+        )}
       </div>
 
       {stats.length === 0 ? (
@@ -116,17 +118,19 @@ export default function Rutas() {
                   </div>
                   <div className="text-xs text-slate-500 truncate">{r.cobrador}</div>
                 </div>
-                <ActionMenu
-                  actions={[
-                    { label: 'Editar', icon: Pencil, onClick: () => setModal({ editar: r }) },
-                    {
-                      label: 'Eliminar',
-                      icon: Trash2,
-                      danger: true,
-                      onClick: () => intentarBorrar(r),
-                    },
-                  ]}
-                />
+                {esAdmin && (
+                  <ActionMenu
+                    actions={[
+                      { label: 'Editar', icon: Pencil, onClick: () => setModal({ editar: r }) },
+                      {
+                        label: 'Eliminar',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: () => intentarBorrar(r),
+                      },
+                    ]}
+                  />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {[

@@ -53,12 +53,16 @@ function ClienteCard({
         <ActionMenu
           actions={[
             { label: 'Editar cliente', icon: Pencil, onClick: () => onEditar(cliente) },
-            {
-              label: 'Eliminar cliente',
-              icon: Trash2,
-              danger: true,
-              onClick: () => onEliminar(cliente),
-            },
+            ...(onEliminar
+              ? [
+                  {
+                    label: 'Eliminar cliente',
+                    icon: Trash2,
+                    danger: true,
+                    onClick: () => onEliminar(cliente),
+                  },
+                ]
+              : []),
           ]}
         />
       </div>
@@ -88,13 +92,26 @@ function ClienteCard({
         ]
       : []),
     { label: 'Editar cliente', icon: Pencil, onClick: () => onEditar(cliente) },
-    {
-      label: 'Eliminar préstamo',
-      icon: FileX,
-      danger: true,
-      onClick: () => onEliminarPrestamo(prestamo),
-    },
-    { label: 'Eliminar cliente', icon: Trash2, danger: true, onClick: () => onEliminar(cliente) },
+    ...(onEliminarPrestamo
+      ? [
+          {
+            label: 'Eliminar préstamo',
+            icon: FileX,
+            danger: true,
+            onClick: () => onEliminarPrestamo(prestamo),
+          },
+        ]
+      : []),
+    ...(onEliminar
+      ? [
+          {
+            label: 'Eliminar cliente',
+            icon: Trash2,
+            danger: true,
+            onClick: () => onEliminar(cliente),
+          },
+        ]
+      : []),
   ];
 
   return (
