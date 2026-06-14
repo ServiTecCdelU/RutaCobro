@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Settings,
   Building2,
@@ -12,6 +12,7 @@ import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { SERVITEC, servitecWhatsApp } from '@/utils/servitec';
 import { normalizarPunitorio } from '@/utils/punitorios';
+import { MONEDAS } from '@/utils/formatters';
 
 function CardPunitorios() {
   const { negocioConfig, actualizarPunitorio } = useApp();
@@ -102,11 +103,35 @@ function CardPunitorios() {
 }
 
 export default function Configuracion() {
-  const { user, esAdmin } = useApp();
+  const { user, esAdmin, negocioConfig, actualizarDatosNegocio } = useApp();
   const toast = useToast();
 
-  const [nombreNegocio, setNombreNegocio] = useState('');
-  const [moneda, setMoneda] = useState('ARS');
+  const [nombreNegocio, setNombreNegocio] = useState(negocioConfig?.nombre ?? '');
+  const [moneda, setMoneda] = useState(negocioConfig?.moneda ?? 'ARS');
+  const [guardando, setGuardando] = useState(false);
+
+  // Sembrar el form la primera vez que llega la config (puede cargar async).
+  const sembrado = useRef(negocioConfig != null);
+  useEffect(() => {
+    if (!sembrado.current && negocioConfig != null) {
+      setNombreNegocio(negocioConfig.nombre ?? '');
+      setMoneda(negocioConfig.moneda ?? 'ARS');
+      sembrado.current = true;
+    }
+  }, [negocioConfig]);
+
+  const handleGuardarNegocio = async () => {
+    setGuardando(true);
+    try {
+      await actualizarDatosNegocio({ nombre: nombreNegocio, moneda });
+      toast.success('Datos del negocio guardados');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo guardar', { description: err.message });
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -163,22 +188,21 @@ export default function Configuracion() {
               onChange={(e) => setMoneda(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all bg-white"
             >
-              <option value="ARS">ARS — Peso argentino</option>
-              <option value="USD">USD — Dolar estadounidense</option>
-              <option value="MXN">MXN — Peso mexicano</option>
-              <option value="COP">COP — Peso colombiano</option>
-              <option value="PEN">PEN — Sol peruano</option>
+              {Object.entries(MONEDAS).map(([codigo, { nombre }]) => (
+                <option key={codigo} value={codigo}>
+                  {codigo} — {nombre}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
         <button
-          onClick={() =>
-            toast.info('Configuracion guardada (proximamente se persistira en Firestore)')
-          }
-          className="mt-4 w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-gradient text-white text-sm font-semibold hover:opacity-95 active:scale-[0.98] shadow-brand-sm hover:shadow-brand transition-all flex items-center justify-center gap-2"
+          onClick={handleGuardarNegocio}
+          disabled={guardando}
+          className="mt-4 w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-gradient text-white text-sm font-semibold hover:opacity-95 active:scale-[0.98] disabled:opacity-50 shadow-brand-sm hover:shadow-brand transition-all flex items-center justify-center gap-2"
         >
-          <Save size={16} /> Guardar cambios
+          <Save size={16} /> {guardando ? 'Guardando…' : 'Guardar cambios'}
         </button>
       </div>
 

@@ -6,6 +6,7 @@ import {
   subscribeNegocioConfig,
   subscribeGastos,
 } from '@/firebase/services';
+import { setMoneda } from '@/utils/formatters';
 import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
@@ -62,7 +63,10 @@ export function DataProvider({ children }) {
     const unsubs = [
       subscribeNegocioConfig(
         (cfg) => {
-          if (!cancelled) setNegocioConfig(cfg);
+          if (!cancelled) {
+            setNegocioConfig(cfg);
+            if (cfg?.moneda) setMoneda(cfg.moneda);
+          }
         },
         (err) => {
           console.error('[data] config', err.code);

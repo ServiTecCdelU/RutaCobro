@@ -87,6 +87,18 @@ export const actualizarCapitalTotal = (capitalTotal) =>
 export const actualizarPunitorio = (punitorio) =>
   setDoc(configRef(), { punitorio }, { merge: true });
 
+const MONEDAS_VALIDAS = ['ARS', 'USD', 'MXN', 'COP', 'PEN'];
+
+export const actualizarDatosNegocio = ({ nombre, moneda }) => {
+  const data = {};
+  if (nombre !== undefined) data.nombre = String(nombre).trim().slice(0, 100);
+  if (moneda !== undefined) {
+    if (!MONEDAS_VALIDAS.includes(moneda)) throw new Error(`Moneda inválida: ${moneda}`);
+    data.moneda = moneda;
+  }
+  return setDoc(configRef(), data, { merge: true });
+};
+
 // ── Listeners en tiempo real ──────────────────────────────────────────────────
 
 export const subscribeRutas = (cb, onError) => listen(col('rutas'), cb, onError);

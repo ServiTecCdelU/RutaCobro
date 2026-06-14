@@ -1,13 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   formatMoney,
   formatFecha,
   formatFechaLarga,
   telefonoAWhatsApp,
   linkWhatsApp,
+  setMoneda,
+  getMoneda,
 } from './formatters';
 
 describe('formatMoney', () => {
+  afterEach(() => {
+    setMoneda('ARS'); // restaurar default para no contaminar otros tests
+  });
+
   it('formatea números positivos', () => {
     const result = formatMoney(1500);
     expect(result).toContain('1');
@@ -22,6 +28,24 @@ describe('formatMoney', () => {
   });
 
   it('maneja 0', () => {
+    expect(formatMoney(0)).toBe('$0');
+  });
+
+  it('respeta la moneda activa (USD → prefijo US$)', () => {
+    setMoneda('USD');
+    expect(getMoneda()).toBe('USD');
+    expect(formatMoney(1500).startsWith('US$')).toBe(true);
+    expect(formatMoney(null)).toBe('US$0');
+  });
+
+  it('usa el símbolo del sol peruano (PEN → S/)', () => {
+    setMoneda('PEN');
+    expect(formatMoney(0)).toBe('S/0');
+  });
+
+  it('ignora códigos de moneda desconocidos (mantiene el actual)', () => {
+    setMoneda('ZZZ');
+    expect(getMoneda()).toBe('ARS');
     expect(formatMoney(0)).toBe('$0');
   });
 });
