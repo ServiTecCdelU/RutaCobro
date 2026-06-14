@@ -19,6 +19,7 @@ import CuotasHoy from '@/components/dashboard/CuotasHoy';
 import CotizacionDolar from '@/components/dashboard/CotizacionDolar';
 import ProyeccionCaja from '@/components/dashboard/ProyeccionCaja';
 import Onboarding from '@/components/Onboarding';
+import Skeleton, { MetricCardSkeleton } from '@/components/ui/Skeleton';
 import { formatMoney, formatFechaLarga } from '@/utils/formatters';
 import { hoy } from '@/utils/calculos';
 
@@ -43,6 +44,29 @@ export default function Dashboard() {
   // Si no hay rutas ni clientes → mostrar onboarding (pero no si hay error, para no ocultarlo)
   if (!syncing && !error && rutas.length === 0 && clientes.length === 0) {
     return <Onboarding />;
+  }
+
+  // Carga inicial sin datos en caché todavía → skeleton (mejor percepción que ceros)
+  if (syncing && prestamos.length === 0 && clientes.length === 0) {
+    return (
+      <div className="space-y-4 sm:space-y-5">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-40 hidden sm:block" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <MetricCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <MetricCardSkeleton key={i} />
+          ))}
+        </div>
+        <Skeleton className="h-40 w-full rounded-2xl" />
+      </div>
+    );
   }
 
   return (

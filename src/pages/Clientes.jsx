@@ -10,13 +10,14 @@ import RutaSelector from '@/components/ui/RutaSelector';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import EmptyState from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { RowSkeleton } from '@/components/ui/Skeleton';
 import ClienteCard from '@/components/clientes/ClienteCard';
 import ModalDetalle from '@/components/modals/ModalDetalle';
 import ModalNuevoCliente from '@/components/modals/ModalNuevoCliente';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 
 export default function Clientes() {
-  const { clientes, prestamos, rutas, eliminarCliente, eliminarPrestamo, esAdmin, error } =
+  const { clientes, prestamos, rutas, eliminarCliente, eliminarPrestamo, esAdmin, error, syncing } =
     useApp();
   const toast = useToast();
   const { cobrarProxima } = useCobrar();
@@ -121,7 +122,13 @@ export default function Clientes() {
         </button>
       </div>
 
-      {clientes.length === 0 ? (
+      {syncing && clientes.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-card divide-y divide-slate-100 overflow-hidden">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <RowSkeleton key={i} />
+          ))}
+        </div>
+      ) : clientes.length === 0 ? (
         <EmptyState
           icon={Users}
           title="Todavía no tenés clientes"
