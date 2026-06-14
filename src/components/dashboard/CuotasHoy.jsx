@@ -25,11 +25,13 @@ export default function CuotasHoy({ rutaActiva }) {
     .sort((a, b) => diasDeAtraso(b.proxima) - diasDeAtraso(a.proxima));
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/70 overflow-hidden shadow-card">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 overflow-hidden shadow-card">
+      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-slate-900">Cuotas que vencen hoy</h3>
-          <p className="text-xs text-slate-500 tabular-nums">{items.length} pendientes de cobro</p>
+          <h3 className="font-bold text-slate-900 dark:text-slate-100">Cuotas que vencen hoy</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+            {items.length} pendientes de cobro
+          </p>
         </div>
         <button
           onClick={() => navigate('/clientes')}
@@ -40,15 +42,17 @@ export default function CuotasHoy({ rutaActiva }) {
       </div>
 
       {items.length === 0 ? (
-        <div className="py-10 text-center text-slate-400 text-sm">No hay cuotas para hoy</div>
+        <div className="py-10 text-center text-slate-400 dark:text-slate-500 text-sm">
+          No hay cuotas para hoy
+        </div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-slate-700">
           {items.slice(0, 6).map(({ prestamo, cliente, proxima, ruta }) => {
             const atraso = diasDeAtraso(proxima);
             return (
               <div
                 key={prestamo.id}
-                className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
               >
                 <div
                   className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-bold text-xs shadow-sm"
@@ -62,7 +66,7 @@ export default function CuotasHoy({ rutaActiva }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-900 text-sm truncate">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">
                       {cliente.nombre}
                     </span>
                     {atraso > 0 && (
@@ -71,15 +75,15 @@ export default function CuotasHoy({ rutaActiva }) {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500 tabular-nums">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                     Cuota {proxima.nro}/{prestamo.cuotasDetalle.length} · {ruta?.nombre}
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 hidden sm:block">
-                  <div className="font-bold text-slate-900 text-sm tabular-nums">
+                  <div className="font-bold text-slate-900 dark:text-slate-100 text-sm tabular-nums">
                     {formatMoney(proxima.monto)}
                   </div>
-                  <div className="text-[10px] text-slate-500 tabular-nums">
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
                     Vence {formatFecha(proxima.vencimiento)}
                   </div>
                 </div>

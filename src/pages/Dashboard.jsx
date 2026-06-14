@@ -76,10 +76,12 @@ export default function Dashboard() {
       {/* Título + filtro */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-display">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight font-display">
             Resumen de hoy
           </h1>
-          <p className="text-sm text-slate-500 mt-1 capitalize">{formatFechaLarga(hoy())}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 capitalize">
+            {formatFechaLarga(hoy())}
+          </p>
         </div>
         {rutas.length > 0 && (
           <RutaSelector rutas={rutas} rutaActiva={rutaActiva} onSelect={setRutaActiva} />
@@ -228,8 +230,8 @@ export default function Dashboard() {
           accent="#3b82f6"
           sublabel="Cuotas que vencen esta semana"
         />
-        <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/70 p-5 shadow-card">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+        <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700/70 p-5 shadow-card">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
             Mora por antigüedad
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -239,7 +241,7 @@ export default function Dashboard() {
               ['+30 días', m.moraBuckets.b30plus, '#ef4444'],
             ].map(([label, bucket, color]) => (
               <div key={label} className="min-w-0">
-                <div className="text-base font-bold text-slate-900 tabular-nums truncate">
+                <div className="text-base font-bold text-slate-900 dark:text-slate-100 tabular-nums truncate">
                   {formatMoney(bucket.monto)}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1">
@@ -247,7 +249,7 @@ export default function Dashboard() {
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ background: color }}
                   />
-                  <span className="text-[11px] text-slate-500 truncate">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {label} · {bucket.cant}
                   </span>
                 </div>

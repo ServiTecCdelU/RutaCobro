@@ -106,10 +106,10 @@ export default function Clientes() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight font-display">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight font-display">
             Clientes
           </h1>
-          <p className="text-sm text-slate-500 mt-1 tabular-nums">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 tabular-nums">
             {clientes.length} {clientes.length === 1 ? 'cliente' : 'clientes'} · {prestamos.length}{' '}
             {prestamos.length === 1 ? 'préstamo' : 'préstamos'}
           </p>
@@ -123,7 +123,7 @@ export default function Clientes() {
       </div>
 
       {syncing && clientes.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-slate-200/70 shadow-card divide-y divide-slate-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 shadow-card divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
           {Array.from({ length: 6 }).map((_, i) => (
             <RowSkeleton key={i} />
           ))}
@@ -155,7 +155,7 @@ export default function Clientes() {
                 placeholder="Buscar por nombre o DNI…"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
+                className="w-full pl-11 pr-4 py-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all"
               />
             </div>
             <button
@@ -163,7 +163,7 @@ export default function Clientes() {
               className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-semibold transition-colors ${
                 showFiltros
                   ? 'bg-brand-600 text-white border-brand-600'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
               }`}
             >
               <Filter size={15} /> Filtros
@@ -171,9 +171,9 @@ export default function Clientes() {
           </div>
 
           {showFiltros && (
-            <div className="flex flex-col gap-3 p-4 bg-white rounded-2xl border border-slate-200/70 shadow-card">
+            <div className="flex flex-col gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 shadow-card">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                   Estado
                 </p>
                 <div className="flex gap-2 flex-wrap">
@@ -189,7 +189,7 @@ export default function Clientes() {
                       className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                         filtroEstado === val
                           ? 'bg-brand-600 text-white shadow-brand-sm'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                       }`}
                     >
                       {label}
@@ -199,7 +199,7 @@ export default function Clientes() {
               </div>
               {rutas.length > 0 && (
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                     Ruta
                   </p>
                   <RutaSelector rutas={rutas} rutaActiva={rutaActiva} onSelect={setRutaActiva} />
@@ -210,7 +210,7 @@ export default function Clientes() {
 
           {items.length > 0 ? (
             <>
-              <div className="bg-white rounded-2xl border border-slate-200/70 shadow-card divide-y divide-slate-100 overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 shadow-card divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
                 {pag.items.map(({ cliente, prestamo }) => {
                   const ruta = rutas.find((r) => r.id === cliente.rutaId);
                   return (

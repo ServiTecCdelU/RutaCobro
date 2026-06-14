@@ -24,29 +24,35 @@ export default function ConfirmDialog({
     }
   };
 
-  const accent = variant === 'danger'
-    ? { bg: 'bg-rose-100', text: 'text-rose-600', btn: 'bg-rose-600 hover:bg-rose-700' }
-    : { bg: 'bg-amber-100', text: 'text-amber-600', btn: 'bg-brand-gradient hover:opacity-95' };
+  const accent =
+    variant === 'danger'
+      ? { bg: 'bg-rose-100', text: 'text-rose-600', btn: 'bg-rose-600 hover:bg-rose-700' }
+      : { bg: 'bg-amber-100', text: 'text-amber-600', btn: 'bg-brand-gradient hover:opacity-95' };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-[fadein_0.15s_ease-out]">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm shadow-popover animate-[pop_0.18s_ease-out]">
+      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm shadow-popover animate-[pop_0.18s_ease-out]">
         <div className="p-5 flex items-start gap-3">
-          <div className={`w-11 h-11 rounded-xl ${accent.bg} ${accent.text} flex items-center justify-center flex-shrink-0`}>
+          <div
+            className={`w-11 h-11 rounded-xl ${accent.bg} ${accent.text} flex items-center justify-center flex-shrink-0`}
+          >
             <AlertTriangle size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-slate-900">{title}</h3>
-            <p className="text-sm text-slate-600 mt-1">{message}</p>
+            <h3 className="font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{message}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center flex-shrink-0"
+          >
             <X size={16} />
           </button>
         </div>
         <div className="p-5 pt-0 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors"
+            className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
           >
             {cancelText}
           </button>

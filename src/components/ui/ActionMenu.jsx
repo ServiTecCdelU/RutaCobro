@@ -58,7 +58,7 @@ export default function ActionMenu({ actions }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"
+        className="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-colors"
       >
         <MoreVertical size={16} />
       </button>
@@ -68,7 +68,7 @@ export default function ActionMenu({ actions }) {
           <div
             ref={menuRef}
             style={{ position: 'fixed', top: coords.top, left: coords.left, width: MENU_WIDTH }}
-            className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden z-50"
+            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg overflow-hidden z-50"
           >
             {actions.map((a, i) => (
               <button
@@ -80,7 +80,9 @@ export default function ActionMenu({ actions }) {
                 }}
                 disabled={a.disabled}
                 className={`w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  a.danger ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-50'
+                  a.danger
+                    ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 {a.icon && <a.icon size={15} />}

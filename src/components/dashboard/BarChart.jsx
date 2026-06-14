@@ -21,11 +21,13 @@ export default memo(function BarChart({ data }) {
   const positivo = cambio !== null && cambio >= 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 p-5 shadow-card">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="font-bold text-slate-900">Cobranza semanal</h3>
-          <p className="text-xs text-slate-500 tabular-nums">{formatMoney(total)} en 7 días</p>
+          <h3 className="font-bold text-slate-900 dark:text-slate-100">Cobranza semanal</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+            {formatMoney(total)} en 7 días
+          </p>
         </div>
         {cambio !== null && (
           <div
@@ -57,7 +59,7 @@ export default memo(function BarChart({ data }) {
                   }}
                 />
                 {v > 0 && (
-                  <div className="absolute -top-9 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-700 tabular-nums opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-white px-2 py-1 rounded-md shadow-popover border border-slate-100 z-10 pointer-events-none">
+                  <div className="absolute -top-9 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-700 dark:text-slate-200 tabular-nums opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-white dark:bg-slate-700 px-2 py-1 rounded-md shadow-popover border border-slate-100 dark:border-slate-600 z-10 pointer-events-none">
                     {formatMoney(v)}
                   </div>
                 )}

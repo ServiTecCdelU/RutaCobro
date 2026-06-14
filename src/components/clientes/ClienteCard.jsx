@@ -36,13 +36,13 @@ function ClienteCard({
   // ── Fila sin préstamo ──
   if (!prestamo) {
     return (
-      <div className="flex items-center gap-3 py-2.5 px-3 hover:bg-slate-50/70 transition-colors">
+      <div className="flex items-center gap-3 py-2.5 px-3 hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition-colors">
         <Avatar nombre={cliente.nombre} color={color} />
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-slate-900 truncate text-sm leading-tight">
+          <h4 className="font-semibold text-slate-900 dark:text-slate-100 truncate text-sm leading-tight">
             {cliente.nombre}
           </h4>
-          <p className="text-[11px] text-slate-500">Sin préstamo</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Sin préstamo</p>
         </div>
         <button
           onClick={() => onPrestar(cliente.id)}
@@ -117,7 +117,9 @@ function ClienteCard({
   return (
     <div
       className={`flex items-center gap-3 py-2.5 px-3 transition-colors ${
-        enMora ? 'bg-rose-50 hover:bg-rose-100/70' : 'hover:bg-slate-50/70'
+        enMora
+          ? 'bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100/70 dark:hover:bg-rose-950/50'
+          : 'hover:bg-slate-50/70 dark:hover:bg-slate-700/40'
       }`}
     >
       <Avatar nombre={cliente.nombre} color={color} />
@@ -125,7 +127,7 @@ function ClienteCard({
       {/* Datos (toca para ver detalle) */}
       <button onClick={() => onDetalle(prestamo.id)} className="flex-1 min-w-0 text-left">
         <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-slate-900 truncate text-sm leading-tight">
+          <h4 className="font-semibold text-slate-900 dark:text-slate-100 truncate text-sm leading-tight">
             {cliente.nombre}
           </h4>
           {enMora && (
@@ -134,18 +136,18 @@ function ClienteCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5 tabular-nums">
-          <span className="font-semibold text-slate-600">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+          <span className="font-semibold text-slate-600 dark:text-slate-300">
             {pagadas}/{cuotas.length}
           </span>
-          <span className="text-slate-300">·</span>
+          <span className="text-slate-300 dark:text-slate-600">·</span>
           <span className="truncate">
             Próx:{' '}
-            <span className="font-semibold text-slate-700">
+            <span className="font-semibold text-slate-700 dark:text-slate-200">
               {proxima ? formatMoney(proxima.monto) : 'Finalizado'}
             </span>
             {proxima && (
-              <span className="hidden sm:inline text-slate-400">
+              <span className="hidden sm:inline text-slate-400 dark:text-slate-500">
                 {' '}
                 · {formatFecha(proxima.vencimiento)}
               </span>
@@ -156,7 +158,7 @@ function ClienteCard({
 
       {/* Progreso (solo desktop) */}
       <div className="hidden md:block w-20 flex-shrink-0">
-        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${progreso}%`, background: enMora ? '#f43f5e' : color }}
