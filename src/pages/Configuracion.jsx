@@ -7,9 +7,12 @@ import {
   MessageCircle,
   Megaphone,
   TimerReset,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { SERVITEC, servitecWhatsApp } from '@/utils/servitec';
 import { normalizarPunitorio } from '@/utils/punitorios';
 import { MONEDAS } from '@/utils/formatters';
@@ -109,6 +112,7 @@ export default function Configuracion() {
   const [nombreNegocio, setNombreNegocio] = useState(negocioConfig?.nombre ?? '');
   const [moneda, setMoneda] = useState(negocioConfig?.moneda ?? 'ARS');
   const [guardando, setGuardando] = useState(false);
+  const [dark, setDark] = useDarkMode();
 
   // Sembrar el form la primera vez que llega la config (puede cargar async).
   const sembrado = useRef(negocioConfig != null);
@@ -245,12 +249,37 @@ export default function Configuracion() {
           </div>
           <div>
             <h2 className="font-bold text-slate-900">Apariencia</h2>
-            <p className="text-xs text-slate-500">Personalizacion visual (proximamente)</p>
+            <p className="text-xs text-slate-500">Tema claro u oscuro de la aplicación</p>
           </div>
         </div>
-        <p className="text-sm text-slate-500">
-          En futuras versiones podras personalizar colores, logo y tema oscuro.
-        </p>
+        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 flex-shrink-0">
+              {dark ? <Moon size={16} /> : <Sun size={16} />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">Modo oscuro</p>
+              <p className="text-xs text-slate-500 truncate">
+                {dark ? 'Activado' : 'Desactivado'} · se recuerda en este dispositivo
+              </p>
+            </div>
+          </div>
+          <button
+            role="switch"
+            aria-checked={dark}
+            aria-label="Modo oscuro"
+            onClick={() => setDark((v) => !v)}
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+              dark ? 'bg-brand-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                dark ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Info tecnica */}
