@@ -16,6 +16,7 @@ import ErrorBanner from '@/components/ui/ErrorBanner';
 import BarChart from '@/components/dashboard/BarChart';
 import RutaPerformance from '@/components/dashboard/RutaPerformance';
 import CuotasHoy from '@/components/dashboard/CuotasHoy';
+import CotizacionDolar from '@/components/dashboard/CotizacionDolar';
 import ProyeccionCaja from '@/components/dashboard/ProyeccionCaja';
 import Onboarding from '@/components/Onboarding';
 import { formatMoney, formatFechaLarga } from '@/utils/formatters';
@@ -126,6 +127,9 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      {/* Cotización del dólar (valor real de la cartera) */}
+      {!esCobrador && <CotizacionDolar pesos={m.colocado} />}
 
       {/* Métricas principales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
