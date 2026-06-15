@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Receipt, TrendingDown, HandCoins } from 'lucide-react';
 import Header from './Header';
+import AsistenteIA from '@/components/asistente/AsistenteIA';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
 import { useApp } from '@/context/AppContext';
 import { servitecWhatsApp } from '@/utils/servitec';
 
 export default function Layout({ children }) {
   const [modalNuevo, setModalNuevo] = useState(false);
-  const { syncing, puedeEditar } = useApp();
+  const { syncing, puedeEditar, esAdmin } = useApp();
   const tabs = [
     { to: '/', icon: LayoutDashboard, label: 'Tablero', end: true },
     { to: '/cobranza', icon: HandCoins, label: 'Cobranza' },
@@ -83,6 +84,8 @@ export default function Layout({ children }) {
           </NavLink>
         ))}
       </nav>
+
+      {esAdmin && <AsistenteIA />}
 
       {modalNuevo && <ModalNuevoPrestamo onClose={() => setModalNuevo(false)} />}
     </div>
