@@ -5,6 +5,7 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
 } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -18,11 +19,11 @@ const firebaseConfig = {
 };
 
 const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'appId'];
-const faltantes = requiredKeys.filter(k => !firebaseConfig[k]);
+const faltantes = requiredKeys.filter((k) => !firebaseConfig[k]);
 if (faltantes.length > 0) {
   console.error(
-    `[firebase] Faltan variables de entorno: ${faltantes.map(k => `VITE_FIREBASE_${k.toUpperCase()}`).join(', ')}. ` +
-    'Copiá .env.example a .env y completá los valores.'
+    `[firebase] Faltan variables de entorno: ${faltantes.map((k) => `VITE_FIREBASE_${k.toUpperCase()}`).join(', ')}. ` +
+      'Copiá .env.example a .env y completá los valores.',
   );
 }
 
@@ -33,4 +34,6 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 });
 
-export const analytics = isSupported().then(ok => (ok ? getAnalytics(app) : null));
+export const functions = getFunctions(app);
+
+export const analytics = isSupported().then((ok) => (ok ? getAnalytics(app) : null));
