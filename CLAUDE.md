@@ -99,6 +99,14 @@ Las reglas están en `firestore.rules` y aplican **roles a nivel servidor** (ade
 ## Deploy
 Firebase Hosting configurado en `.firebaserc` (proyecto: `ciudalemana`). `firebase.json` es un archivo autogenerado y NO debe commitearse con credenciales.
 
+## Asistente IA (Cloud Functions)
+El asistente (`functions/asistenteIA`, callable) corre un loop de agente con tool use
+(solo lectura sobre Firestore) usando Claude Haiku 4.5. Es **solo-admin** (verifica el rol en
+el server). Prerequisitos para activarlo: plan **Blaze**, el secreto `ANTHROPIC_API_KEY`
+(`firebase functions:secrets:set ANTHROPIC_API_KEY`) y `firebase deploy --only functions`.
+Tests del backend: `cd functions && npm test`. El panel flotante (FAB) está en `Layout` y solo
+se renderiza para admin.
+
 ## PWA
 `vite-plugin-pwa` con `selfDestroying: true` — desregistra el SW automáticamente. No hay Service Worker activo en producción actualmente (decisión deliberada para evitar cache stale).
 
