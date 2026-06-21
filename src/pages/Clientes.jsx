@@ -46,13 +46,14 @@ export default function Clientes() {
       .filter((c) => !q || c.nombre.toLowerCase().includes(q) || c.dni?.includes(q));
 
     const matchEstado = (prestamo) => {
-      if (filtroEstado === 'todos') return true;
       if (filtroEstado === 'sin-prestamo') return false;
+      if (filtroEstado === 'finalizado') return prestamo.estado === 'finalizado';
       if (filtroEstado === 'mora') {
         return (prestamo.cuotasDetalle ?? []).some((c) => !c.pagada && diasDeAtraso(c) > 0);
       }
       if (filtroEstado === 'activo') return prestamo.estado === 'activo';
-      return true;
+      // 'todos': lista del día a día — se ocultan los finalizados (van en su propio chip)
+      return prestamo.estado !== 'finalizado';
     };
 
     const rows = [];
@@ -64,8 +65,16 @@ export default function Clientes() {
         }
         continue;
       }
+      let agregados = 0;
       for (const prestamo of ps) {
-        if (matchEstado(prestamo)) rows.push({ cliente, prestamo });
+        if (matchEstado(prestamo)) {
+          rows.push({ cliente, prestamo });
+          agregados++;
+        }
+      }
+      // En "Todos": cliente con préstamos pero todos finalizados → fila para re-prestar
+      if (agregados === 0 && filtroEstado === 'todos') {
+        rows.push({ cliente, prestamo: null, soloFinalizados: true });
       }
     }
     return rows;
@@ -181,6 +190,7 @@ export default function Clientes() {
                     ['todos', 'Todos'],
                     ['activo', 'Activos'],
                     ['mora', 'En mora'],
+                    ['finalizado', 'Finalizados'],
                     ['sin-prestamo', 'Sin préstamo'],
                   ].map(([val, label]) => (
                     <button
@@ -211,13 +221,14 @@ export default function Clientes() {
           {items.length > 0 ? (
             <>
               <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/70 dark:border-slate-700/70 shadow-card divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
-                {pag.items.map(({ cliente, prestamo }) => {
+                {pag.items.map(({ cliente, prestamo, soloFinalizados }) => {
                   const ruta = rutas.find((r) => r.id === cliente.rutaId);
                   return (
                     <ClienteCard
                       key={prestamo ? prestamo.id : `sin-${cliente.id}`}
                       cliente={cliente}
                       prestamo={prestamo}
+                      soloFinalizados={soloFinalizados}
                       ruta={ruta}
                       onPagar={handleCobrar}
                       onPrestar={setModalPrestamo}

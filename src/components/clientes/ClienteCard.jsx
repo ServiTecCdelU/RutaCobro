@@ -23,6 +23,7 @@ function Avatar({ nombre, color }) {
 function ClienteCard({
   cliente,
   prestamo,
+  soloFinalizados,
   ruta,
   onPagar,
   onPrestar,
@@ -42,7 +43,9 @@ function ClienteCard({
           <h4 className="font-semibold text-slate-900 dark:text-slate-100 truncate text-sm leading-tight">
             {cliente.nombre}
           </h4>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">Sin préstamo</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {soloFinalizados ? 'Sin préstamo activo' : 'Sin préstamo'}
+          </p>
         </div>
         <button
           onClick={() => onPrestar(cliente.id)}
