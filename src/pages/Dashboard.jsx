@@ -93,9 +93,6 @@ export default function Dashboard() {
         userDoc?.montoAsignado > 0 &&
         (() => {
           const miRuta = rutas[0];
-          const capitalEnCalle = prestamos
-            .filter((p) => p.estado === 'activo')
-            .reduce((sum, p) => sum + (p.monto ?? 0), 0);
           // Caja real: capital asignado + cobrado − colocado histórico − gastos.
           // No queda negativo al reinvertir ganancias en nuevos préstamos.
           const disponible =
@@ -111,10 +108,10 @@ export default function Dashboard() {
               />
               <MetricCard
                 label="En calle"
-                value={formatMoney(capitalEnCalle)}
+                value={formatMoney(m.colocado)}
                 icon={Wallet}
                 accent="#8b5cf6"
-                sublabel={`${prestamos.filter((p) => p.estado === 'activo').length} préstamos`}
+                sublabel={`${m.prestamosActivos} préstamos activos`}
               />
               <MetricCard
                 label="Disponible"

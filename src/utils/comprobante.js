@@ -193,7 +193,6 @@ const dibujar = (doc, { cliente, prestamo, ruta, resultado, fechaPago }) => {
   hr(y);
   const rows = [
     ['Monto otorgado', formatMoney(prestamo?.monto)],
-    ['Interés', (prestamo?.interes ?? 0) + '%'],
     ['Total a devolver', formatMoney(totalDevolver)],
     ['Plan', `${prestamo?.cuotas ?? '—'} cuotas ${frecuenciaPlural(prestamo?.frecuenciaDias)}`],
     ['Inicio', prestamo?.fechaInicio ? fechaLarga(prestamo.fechaInicio) : '—'],

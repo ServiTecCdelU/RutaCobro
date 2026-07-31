@@ -19,7 +19,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     let cobradoTotal = 0;
     let porCobrar = 0;
     let colocadoHistorico = 0; // capital de TODOS los préstamos (cobrados o no)
-    let capitalEnCalle = 0; // capital de préstamos activos/mora (lo que está "en la calle")
+    let capitalEnCalle = 0; // capital NO recuperado de préstamos activos/mora ("en la calle")
     let cuotasTotales = 0;
     let cuotasMoraCant = 0;
     let montoMora = 0;
@@ -42,7 +42,6 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     for (const p of prestamosFiltrados) {
       const capital = p.monto ?? 0;
       colocadoHistorico += capital;
-      if (esActivo(p)) capitalEnCalle += capital;
 
       const cuotas = p.cuotasDetalle ?? [];
       const totalPrestamo = cuotas.reduce((s, c) => s + c.monto, 0);
@@ -80,11 +79,16 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
       }
 
       // Distribución proporcional de lo cobrado entre capital e interés
-      capitalRecuperado += cobradoPrestamo * ratioCapital;
+      const capitalDevuelto = cobradoPrestamo * ratioCapital;
+      capitalRecuperado += capitalDevuelto;
       gananciaRealizada += cobradoPrestamo * (1 - ratioCapital);
+
+      // "En calle" = capital todavía no devuelto de los préstamos vigentes
+      if (esActivo(p)) capitalEnCalle += Math.max(0, capital - capitalDevuelto);
     }
 
     capitalRecuperado = Math.round(capitalRecuperado);
+    capitalEnCalle = Math.round(capitalEnCalle);
     gananciaRealizada = Math.round(gananciaRealizada);
 
     const tasaMora = cuotasTotales > 0 ? (cuotasMoraCant / cuotasTotales) * 100 : 0;
@@ -147,7 +151,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     return {
       cobradoTotal,
       porCobrar,
-      colocado: capitalEnCalle, // BUG-1: "en calle" = solo activos/mora
+      colocado: capitalEnCalle, // "en calle" = capital pendiente de activos/mora
       colocadoHistorico,
       capitalRecuperado,
       montoMora,
