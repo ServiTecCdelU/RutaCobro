@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Receipt, TrendingDown, HandCoins } from 'lucide
 import Header from './Header';
 import AsistenteIA from '@/components/asistente/AsistenteIA';
 import ModalNuevoPrestamo from '@/components/modals/ModalNuevoPrestamo';
+import BannerSinConexion from '@/components/ui/BannerSinConexion';
 import { useApp } from '@/context/AppContext';
 import { servitecWhatsApp } from '@/utils/servitec';
 
@@ -20,6 +21,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
+      <BannerSinConexion />
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-[360px] opacity-60"
         style={{

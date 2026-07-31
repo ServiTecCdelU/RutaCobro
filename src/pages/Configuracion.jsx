@@ -16,6 +16,7 @@ import { useDarkMode } from '@/hooks/useDarkMode';
 import { SERVITEC, servitecWhatsApp } from '@/utils/servitec';
 import { normalizarPunitorio } from '@/utils/punitorios';
 import { MONEDAS } from '@/utils/formatters';
+import CardBackup from '@/components/configuracion/CardBackup';
 
 function CardPunitorios() {
   const { negocioConfig, actualizarPunitorio } = useApp();
@@ -211,6 +212,8 @@ export default function Configuracion() {
       </div>
 
       {esAdmin && <CardPunitorios />}
+
+      {esAdmin && <CardBackup />}
 
       {/* SERVITEC — recomendá el sistema */}
       <div className="bg-white rounded-2xl border border-slate-200/70 p-5 shadow-card overflow-hidden">

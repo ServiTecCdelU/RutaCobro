@@ -1,19 +1,65 @@
 rules_version = '2';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reglas de RutaCobro — el aislamiento por rol y por RUTA se aplica acá, en el
+// servidor. El gating del frontend (DataContext, AdminOnly) es solo UX: estas
+// reglas son la frontera real.
+//
+// Requisito de datos: `prestamos`, `movimientos`, `notas` y `gastos` llevan
+// `rutaId` desnormalizado. Sin ese campo, un cobrador no puede leerlos.
+// Ver scripts/migrar-rutaid.mjs y PLAN_HARDENING.md (tarea 1.11).
+//
+// "Las reglas no son filtros": una consulta de lista sin `where('rutaId','==',…)`
+// hecha por un cobrador es RECHAZADA entera, no filtrada. El frontend ya agrega
+// ese filtro (services.js).
+// ─────────────────────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-    // El rol vive en /usuarios/{uid}. esAdmin() cuesta 1 lectura por operación.
+    // ── Helpers de identidad ─────────────────────────────────────────────────
+    // El rol vive en /usuarios/{uid}. Cada get() cuesta 1 lectura, pero Firestore
+    // cachea el resultado dentro de la evaluación de una misma operación.
 
     function isAuth() {
       return request.auth != null;
     }
 
-    function esAdmin() {
+    function tieneMembresia() {
       return isAuth()
-        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function miDoc() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function rolEs(rol) {
+      return tieneMembresia() && miDoc().rol == rol;
+    }
+
+    function esAdmin()     { return rolEs('admin'); }
+    function esCobrador()  { return rolEs('cobrador'); }
+    function esVisitante() { return rolEs('visitante'); }
+    function esCliente()   { return rolEs('cliente'); }
+
+    function miRuta()    { return miDoc().rutaId; }
+    function miCliente() { return miDoc().clienteId; }
+
+    // Cobrador con ruta asignada operando sobre SU ruta.
+    // `rutaId` debe existir y no ser null en ambos lados: si el cobrador no tiene
+    // ruta (null) no puede alcanzar documentos sin ruta por coincidencia.
+    function esMiRutaLectura() {
+      return esCobrador() && miRuta() != null && resource.data.rutaId == miRuta();
+    }
+
+    function esMiRutaEscritura() {
+      return esCobrador() && miRuta() != null && request.resource.data.rutaId == miRuta();
+    }
+
+    // Lectura de solo consulta (rol visitante): ve todo, no escribe nada.
+    function puedeVerTodo() {
+      return esAdmin() || esVisitante();
     }
 
     function configNegocio() {
@@ -61,57 +107,79 @@ service cloud.firestore {
 
     // ── Invitaciones ─────────────────────────────────────────────────────────
     // get por token (inadivinable) para aceptarla; listar solo admin.
-    // delete autenticado: la invitación se consume en la misma transacción.
+    // delete: el admin, o un usuario todavía SIN membresía que la está consumiendo.
     match /invitaciones/{token} {
       allow get: if isAuth();
       allow list: if esAdmin();
       allow create, update: if esAdmin();
-      allow delete: if isAuth();
+      allow delete: if esAdmin() || (isAuth() && !tieneMembresia());
     }
 
     // ── Rutas ────────────────────────────────────────────────────────────────
+    // Sin datos personales: cualquier miembro las lee (se necesitan los colores
+    // y nombres para renderizar). Solo el admin las modifica.
     match /rutas/{doc} {
-      allow read: if isAuth();
+      allow read: if tieneMembresia();
       allow write: if esAdmin();
     }
 
     // ── Clientes ─────────────────────────────────────────────────────────────
-    // Cobradores dan de alta y editan; borrar (con su historial) es de admin.
-    match /clientes/{doc} {
-      allow read, create, update: if isAuth();
+    // Contienen datos personales (DNI, teléfono, dirección): lectura acotada.
+    match /clientes/{clienteId} {
+      allow read: if puedeVerTodo()
+        || esMiRutaLectura()
+        || (esCliente() && clienteId == miCliente());
+      allow create: if esAdmin() || esMiRutaEscritura();
+      // El cobrador no puede mover un cliente fuera de su ruta ni traerlo desde otra.
+      allow update: if esAdmin() || (esMiRutaLectura() && esMiRutaEscritura());
       allow delete: if esAdmin();
     }
 
     // ── Préstamos ────────────────────────────────────────────────────────────
-    // Cobrar/refinanciar son updates; borrar un préstamo es de admin.
+    // Cobrar/refinanciar son updates. Borrar es de admin (y ya casi no se usa:
+    // el borrado pasó a ser lógico — ver Fase 3).
     match /prestamos/{doc} {
-      allow read, create, update: if isAuth();
+      allow read: if puedeVerTodo()
+        || esMiRutaLectura()
+        || (esCliente() && resource.data.clienteId == miCliente());
+      allow create: if esAdmin() || esMiRutaEscritura();
+      allow update: if esAdmin() || (esMiRutaLectura() && esMiRutaEscritura());
       allow delete: if esAdmin();
     }
 
     // ── Movimientos ──────────────────────────────────────────────────────────
     // Inmutables: solo crear y borrar (revertir cobro / borrado por admin).
     match /movimientos/{doc} {
-      allow read, create, delete: if isAuth();
+      allow read: if puedeVerTodo()
+        || esMiRutaLectura()
+        || (esCliente() && resource.data.clienteId == miCliente());
+      allow create: if esAdmin() || esMiRutaEscritura();
       allow update: if false;
+      allow delete: if esAdmin() || esMiRutaLectura();
     }
 
     // ── Notas ────────────────────────────────────────────────────────────────
     match /notas/{doc} {
-      allow read, create: if isAuth();
+      allow read: if puedeVerTodo() || esMiRutaLectura();
+      allow create: if esAdmin() || esMiRutaEscritura();
       allow update: if false;
       allow delete: if esAdmin();
     }
 
     // ── Gastos ───────────────────────────────────────────────────────────────
+    // Entran al cierre de caja y a la comisión: un cobrador no puede tocar los
+    // gastos de otra ruta.
     match /gastos/{doc} {
-      allow read, write: if isAuth();
+      allow read: if puedeVerTodo() || esMiRutaLectura();
+      allow create: if esAdmin() || esMiRutaEscritura();
+      allow update: if esAdmin() || (esMiRutaLectura() && esMiRutaEscritura());
+      allow delete: if esAdmin() || esMiRutaLectura();
     }
 
     // ── Auditoría ────────────────────────────────────────────────────────────
     // Registro inmutable de acciones sensibles; solo el admin lo lee.
     match /auditoria/{doc} {
-      allow create: if isAuth();
+      allow create: if tieneMembresia();
       allow read: if esAdmin();
       allow update, delete: if false;
     }

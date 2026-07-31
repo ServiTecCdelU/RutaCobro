@@ -19,6 +19,7 @@ import {
 import { db } from './config';
 import { hoy } from '@/utils/calculos';
 import { construirRefinanciacion } from '@/utils/refinanciacion';
+import { construirExport, COLECCIONES_EXPORTABLES } from '@/utils/exportar';
 
 // Paths planos — negocio único, sin multi-tenancy
 const col = (name) => collection(db, name);
@@ -120,20 +121,24 @@ export const subscribeClientes = (cb, onError, { rutaId, clienteId } = {}) => {
   return listen(query(col('clientes'), ...constraints), cb, onError);
 };
 
-export const subscribePrestamos = (cb, onError) =>
-  listen(query(col('prestamos'), orderBy('fechaInicio', 'desc')), cb, onError);
+// `rutaId` / `clienteId` no son solo un filtro de UI: las reglas de Firestore
+// RECHAZAN la consulta entera si un cobrador (o un cliente) la pide sin acotar.
+export const subscribePrestamos = (cb, onError, { rutaId, clienteId } = {}) => {
+  const constraints = [orderBy('fechaInicio', 'desc')];
+  if (clienteId) constraints.unshift(where('clienteId', '==', clienteId));
+  else if (rutaId) constraints.unshift(where('rutaId', '==', rutaId));
+  return listen(query(col('prestamos'), ...constraints), cb, onError);
+};
 
-export const subscribeMovimientosPorRango = (desde, hasta, cb, onError) =>
-  listen(
-    query(
-      col('movimientos'),
-      where('fecha', '>=', desde),
-      where('fecha', '<=', hasta),
-      orderBy('fecha', 'desc'),
-    ),
-    cb,
-    onError,
-  );
+export const subscribeMovimientosPorRango = (desde, hasta, cb, onError, { rutaId } = {}) => {
+  const constraints = [
+    where('fecha', '>=', desde),
+    where('fecha', '<=', hasta),
+    orderBy('fecha', 'desc'),
+  ];
+  if (rutaId) constraints.unshift(where('rutaId', '==', rutaId));
+  return listen(query(col('movimientos'), ...constraints), cb, onError);
+};
 
 // ── Rutas ─────────────────────────────────────────────────────────────────────
 
@@ -156,20 +161,75 @@ export const eliminarRuta = async (id) => {
 export const crearCliente = (data) =>
   addDoc(col('clientes'), { ...data, creadoEn: serverTimestamp() });
 
-export const actualizarCliente = (id, data) => updateDoc(ref('clientes', id), data);
+// Si el cliente cambia de ruta hay que arrastrar `rutaId` a sus préstamos y
+// movimientos: es el campo del que dependen las reglas de Firestore. Si no se
+// propaga, el cobrador de la ruta nueva no ve nada y el de la vieja sigue viendo.
+export const actualizarCliente = async (id, data) => {
+  const rutaNueva = data.rutaId;
+  if (rutaNueva === undefined) return updateDoc(ref('clientes', id), data);
+
+  const snapActual = await getDoc(ref('clientes', id));
+  const rutaAnterior = snapActual.data()?.rutaId ?? null;
+  await updateDoc(ref('clientes', id), data);
+  if (rutaNueva === rutaAnterior) return;
+
+  const [prestamosSnap, movsSnap] = await Promise.all([
+    getDocs(query(col('prestamos'), where('clienteId', '==', id))),
+    getDocs(query(col('movimientos'), where('clienteId', '==', id))),
+  ]);
+  await actualizarEnLotes([...prestamosSnap.docs, ...movsSnap.docs], { rutaId: rutaNueva });
+};
 
 export const eliminarCliente = (id) => deleteDoc(ref('clientes', id));
 
+const LIMITE_BATCH = 499;
+
 const commitInChunks = async (refs) => {
-  const LIMIT = 499;
-  for (let i = 0; i < refs.length; i += LIMIT) {
+  for (let i = 0; i < refs.length; i += LIMITE_BATCH) {
     const batch = writeBatch(db);
-    refs.slice(i, i + LIMIT).forEach((r) => batch.delete(r));
+    refs.slice(i, i + LIMITE_BATCH).forEach((r) => batch.delete(r));
     await batch.commit();
   }
 };
 
+const actualizarEnLotes = async (docs, data) => {
+  for (let i = 0; i < docs.length; i += LIMITE_BATCH) {
+    const batch = writeBatch(db);
+    docs.slice(i, i + LIMITE_BATCH).forEach((d) => batch.update(d.ref, data));
+    await batch.commit();
+  }
+};
+
+// Borrado LÓGICO: el cliente y sus préstamos quedan marcados `archivado` y se
+// ocultan de la app, pero los datos siguen ahí y la operación es reversible.
+// Los movimientos NO se tocan: son el registro contable y deben seguir cuadrando
+// el cierre de caja histórico.
 export const eliminarClienteCompleto = async (clienteId) => {
+  const clienteSnap = await getDoc(ref('clientes', clienteId));
+  const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
+
+  const marca = { archivado: true, archivadoEn: hoy() };
+  await actualizarEnLotes(prestamosSnap.docs, marca);
+  await updateDoc(ref('clientes', clienteId), marca);
+
+  await auditar({
+    accion: 'archivar-cliente',
+    clienteId,
+    detalle: `Cliente "${clienteSnap.data()?.nombre ?? clienteId}" archivado junto con ${prestamosSnap.size} préstamo(s). Reversible.`,
+  });
+};
+
+export const restaurarCliente = async (clienteId) => {
+  const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
+  const marca = { archivado: false, archivadoEn: null };
+  await actualizarEnLotes(prestamosSnap.docs, marca);
+  await updateDoc(ref('clientes', clienteId), marca);
+  await auditar({ accion: 'restaurar-cliente', clienteId, detalle: 'Cliente restaurado' });
+};
+
+// Borrado físico definitivo. Queda disponible solo para vaciar la papelera de
+// forma explícita: destruye préstamos y movimientos sin retorno.
+export const eliminarClienteDefinitivo = async (clienteId) => {
   const clienteSnap = await getDoc(ref('clientes', clienteId));
   const prestamosSnap = await getDocs(query(col('prestamos'), where('clienteId', '==', clienteId)));
   const movsSnap = await getDocs(query(col('movimientos'), where('clienteId', '==', clienteId)));
@@ -182,32 +242,68 @@ export const eliminarClienteCompleto = async (clienteId) => {
   await auditar({
     accion: 'eliminar-cliente',
     clienteId,
-    detalle: `Cliente "${clienteSnap.data()?.nombre ?? clienteId}" eliminado con ${prestamosSnap.size} préstamo(s) y ${movsSnap.size} movimiento(s)`,
+    detalle: `BORRADO DEFINITIVO de "${clienteSnap.data()?.nombre ?? clienteId}" con ${prestamosSnap.size} préstamo(s) y ${movsSnap.size} movimiento(s)`,
   });
 };
 
 // ── Préstamos ─────────────────────────────────────────────────────────────────
 
-export const crearPrestamo = (data) =>
-  addDoc(col('prestamos'), {
+// Devuelve el `rutaId` del préstamo. Los préstamos creados antes de la
+// desnormalización no lo tienen: en ese caso se lee del cliente dentro de la
+// misma transacción y el llamador lo persiste (auto-reparación incremental).
+const resolverRutaId = async (tx, prestamo) => {
+  if (prestamo.rutaId) return prestamo.rutaId;
+  if (!prestamo.clienteId) return null;
+  const clienteSnap = await tx.get(ref('clientes', prestamo.clienteId));
+  return clienteSnap.exists() ? (clienteSnap.data().rutaId ?? null) : null;
+};
+
+// `rutaId` se guarda desnormalizado porque es el campo sobre el que las reglas
+// de Firestore aíslan al cobrador. Si el llamador no lo pasa, se deriva del cliente.
+export const crearPrestamo = async (data) => {
+  let { rutaId } = data;
+  if (!rutaId) {
+    const clienteSnap = await getDoc(ref('clientes', data.clienteId));
+    rutaId = clienteSnap.data()?.rutaId ?? null;
+  }
+  return addDoc(col('prestamos'), {
     ...data,
+    rutaId,
     estado: 'activo',
     creadoEn: serverTimestamp(),
   });
+};
 
 export const actualizarPrestamo = (id, data) => updateDoc(ref('prestamos', id), data);
 
+// Borrado lógico (ver eliminarClienteCompleto). Los movimientos quedan intactos.
 export const eliminarPrestamo = async (id) => {
   const prestamoSnap = await getDoc(ref('prestamos', id));
+  await updateDoc(ref('prestamos', id), { archivado: true, archivadoEn: hoy() });
+  await auditar({
+    accion: 'archivar-prestamo',
+    prestamoId: id,
+    clienteId: prestamoSnap.data()?.clienteId ?? null,
+    monto: prestamoSnap.data()?.monto ?? null,
+    detalle: 'Préstamo archivado. Reversible.',
+  });
+};
+
+export const restaurarPrestamo = async (id) => {
+  await updateDoc(ref('prestamos', id), { archivado: false, archivadoEn: null });
+  await auditar({ accion: 'restaurar-prestamo', prestamoId: id, detalle: 'Préstamo restaurado' });
+};
+
+export const eliminarPrestamoDefinitivo = async (id) => {
+  const prestamoSnap = await getDoc(ref('prestamos', id));
   const movsSnap = await getDocs(query(col('movimientos'), where('prestamoId', '==', id)));
-  const allRefs = [...movsSnap.docs.map((d) => d.ref), ref('prestamos', id)];
-  await commitInChunks(allRefs);
+  await commitInChunks([...movsSnap.docs.map((d) => d.ref), ref('prestamos', id)]);
   await auditar({
     accion: 'eliminar-prestamo',
     prestamoId: id,
     clienteId: prestamoSnap.data()?.clienteId ?? null,
     monto: prestamoSnap.data()?.monto ?? null,
-    detalle: `Préstamo eliminado junto con ${movsSnap.size} movimiento(s)`,
+    detalle: `BORRADO DEFINITIVO del préstamo junto con ${movsSnap.size} movimiento(s)`,
   });
 };
 
@@ -219,6 +315,7 @@ export const refinanciarPrestamo = async (prestamoId, { interes, cuotas, frecuen
     const snap = await tx.get(prestamoRef);
     if (!snap.exists()) throw new Error('Préstamo no encontrado');
     const prestamo = { id: snap.id, ...snap.data() };
+    const rutaId = await resolverRutaId(tx, prestamo);
     const { saldo, cuotasDetalle } = construirRefinanciacion(prestamo, {
       interes,
       cuotas,
@@ -228,6 +325,7 @@ export const refinanciarPrestamo = async (prestamoId, { interes, cuotas, frecuen
     tx.update(prestamoRef, {
       cuotasDetalle,
       estado: 'activo',
+      rutaId,
       refinanciadoEn: hoyStr,
       refinanciaciones: (prestamo.refinanciaciones ?? 0) + 1,
     });
@@ -254,7 +352,8 @@ export const cobrarCuota = async (prestamoId, nroCuota, { punitorio } = {}) => {
     if (!snap.exists()) throw new Error('Préstamo no encontrado');
 
     const prestamo = snap.data();
-    const cuotaOriginal = prestamo.cuotasDetalle.find((c) => c.nro === nroCuota);
+    const rutaId = await resolverRutaId(tx, prestamo);
+    const cuotaOriginal = (prestamo.cuotasDetalle ?? []).find((c) => c.nro === nroCuota);
     if (!cuotaOriginal) throw new Error('Cuota no encontrada');
     if (cuotaOriginal.pagada) throw new Error('La cuota ya estaba pagada');
 
@@ -269,11 +368,13 @@ export const cobrarCuota = async (prestamoId, nroCuota, { punitorio } = {}) => {
     tx.update(prestamoRef, {
       cuotasDetalle: cuotas,
       estado: todasPagadas ? 'finalizado' : 'activo',
+      rutaId,
     });
 
     tx.set(movRef, {
       prestamoId,
       clienteId: prestamo.clienteId,
+      rutaId,
       cuotaNro: nroCuota,
       monto: faltaPagar,
       fecha: hoyStr,
@@ -287,6 +388,7 @@ export const cobrarCuota = async (prestamoId, nroCuota, { punitorio } = {}) => {
       tx.set(doc(col('movimientos')), {
         prestamoId,
         clienteId: prestamo.clienteId,
+        rutaId,
         cuotaNro: nroCuota,
         monto: montoPunitorio,
         fecha: hoyStr,
@@ -319,6 +421,7 @@ export const pagarMonto = async (prestamoId, montoPago) => {
     if (!snap.exists()) throw new Error('Préstamo no encontrado');
 
     const prestamo = snap.data();
+    const rutaId = await resolverRutaId(tx, prestamo);
     const cuotasOriginales = prestamo.cuotasDetalle ?? [];
     const pendiente = cuotasOriginales.reduce((s, c) => {
       const pagado = c.pagada ? (c.pagado ?? c.monto) : (c.pagado ?? 0);
@@ -352,6 +455,7 @@ export const pagarMonto = async (prestamoId, montoPago) => {
     tx.update(prestamoRef, {
       cuotasDetalle: cuotas,
       estado: todasPagadas ? 'finalizado' : 'activo',
+      rutaId,
     });
 
     for (const { nro, montoAplicado } of afectadas) {
@@ -359,6 +463,7 @@ export const pagarMonto = async (prestamoId, montoPago) => {
       tx.set(movRef, {
         prestamoId,
         clienteId: prestamo.clienteId,
+        rutaId,
         cuotaNro: nro,
         monto: montoAplicado,
         fecha: hoyStr,
@@ -512,13 +617,20 @@ export const subscribeNotas = (clienteId, cb, onError) =>
     onError,
   );
 
-export const crearNota = ({ clienteId, texto, autor }) =>
-  addDoc(col('notas'), {
+export const crearNota = async ({ clienteId, texto, autor, rutaId }) => {
+  let ruta = rutaId;
+  if (!ruta) {
+    const clienteSnap = await getDoc(ref('clientes', clienteId));
+    ruta = clienteSnap.data()?.rutaId ?? null;
+  }
+  return addDoc(col('notas'), {
     clienteId,
+    rutaId: ruta,
     texto: texto.trim(),
     autor: autor ?? '',
     creadoEn: serverTimestamp(),
   });
+};
 
 export const eliminarNota = (id) => deleteDoc(ref('notas', id));
 
@@ -532,17 +644,15 @@ export const subscribeGastos = (cb, onError, { rutaId } = {}) => {
   return listen(query(col('gastos'), ...constraints), cb, onError);
 };
 
-export const subscribeGastosPorRango = (desde, hasta, cb, onError) =>
-  listen(
-    query(
-      col('gastos'),
-      where('fecha', '>=', desde),
-      where('fecha', '<=', hasta),
-      orderBy('fecha', 'desc'),
-    ),
-    cb,
-    onError,
-  );
+export const subscribeGastosPorRango = (desde, hasta, cb, onError, { rutaId } = {}) => {
+  const constraints = [
+    where('fecha', '>=', desde),
+    where('fecha', '<=', hasta),
+    orderBy('fecha', 'desc'),
+  ];
+  if (rutaId) constraints.unshift(where('rutaId', '==', rutaId));
+  return listen(query(col('gastos'), ...constraints), cb, onError);
+};
 
 export const crearGasto = ({ monto, categoria, descripcion, fecha, rutaId, autor }) => {
   if (!(monto > 0)) throw new Error('El monto debe ser mayor a 0');
@@ -561,6 +671,32 @@ export const crearGasto = ({ monto, categoria, descripcion, fecha, rutaId, autor
 export const actualizarGasto = (id, data) => updateDoc(ref('gastos', id), data);
 
 export const eliminarGasto = (id) => deleteDoc(ref('gastos', id));
+
+// ── Export / backup ──────────────────────────────────────────────────────────
+
+/**
+ * Lee el negocio completo y devuelve el objeto de backup.
+ * Solo lo puede correr el admin (las reglas rechazan al resto en `auditoria`
+ * y en las listas sin filtro de ruta).
+ */
+export const exportarNegocio = async () => {
+  const [configSnap, ...snaps] = await Promise.all([
+    getDoc(configRef()),
+    ...COLECCIONES_EXPORTABLES.map((nombre) => getDocs(col(nombre))),
+  ]);
+
+  const colecciones = Object.fromEntries(
+    COLECCIONES_EXPORTABLES.map((nombre, i) => [
+      nombre,
+      snaps[i].docs.map((d) => ({ id: d.id, ...d.data() })),
+    ]),
+  );
+
+  return construirExport({
+    colecciones,
+    config: configSnap.exists() ? configSnap.data() : null,
+  });
+};
 
 export const revertirCuota = async (prestamoId, nroCuota) => {
   const prestamoRef = ref('prestamos', prestamoId);
@@ -583,13 +719,15 @@ export const revertirCuota = async (prestamoId, nroCuota) => {
     if (!snap.exists()) throw new Error('Préstamo no encontrado');
 
     const prestamo = snap.data();
-    const cuotas = prestamo.cuotasDetalle.map((c) =>
+    const rutaId = await resolverRutaId(tx, prestamo);
+    const cuotas = (prestamo.cuotasDetalle ?? []).map((c) =>
       c.nro === nroCuota ? { ...c, pagada: false, fechaPago: null, pagado: 0 } : c,
     );
 
     tx.update(prestamoRef, {
       cuotasDetalle: cuotas,
       estado: 'activo',
+      rutaId,
     });
 
     // Solo borrar movimientos que aún existen

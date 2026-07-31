@@ -7,6 +7,7 @@ import { construirComprobantePago } from '@/utils/comprobante';
 import { compartirComprobante } from '@/utils/compartir';
 import { calcularPunitorio } from '@/utils/punitorios';
 import { hoy } from '@/utils/calculos';
+import { estaOffline, mensajeDeError, MENSAJE_SIN_CONEXION } from '@/utils/conexion';
 
 const DURACION_TOAST_COBRO = 8000;
 
@@ -61,7 +62,7 @@ export function useCobrar() {
               await revertirCuota(prestamoId, res.cuotaNro);
               toast.info('Cobro revertido');
             } catch (err) {
-              toast.error('No se pudo revertir', { description: err.message });
+              toast.error('No se pudo revertir', { description: mensajeDeError(err) });
             }
           },
         },
@@ -95,6 +96,12 @@ export function useCobrar() {
       const p = prestamos.find((pr) => pr.id === prestamoId);
       const proxima = (p?.cuotasDetalle ?? []).find((c) => !c.pagada);
       if (!proxima) return;
+      // Cobrar es una transacción: sin red falla igual, pero de forma confusa.
+      // Se corta antes para que el cobrador no crea que registró el pago.
+      if (estaOffline()) {
+        toast.error('Sin conexión', { description: MENSAJE_SIN_CONEXION });
+        return;
+      }
       setCobrando(true);
       try {
         const res = await cobrarCuota(prestamoId, proxima.nro, {
@@ -104,7 +111,7 @@ export function useCobrar() {
         toastCobro(prestamoId, res, cliente?.nombre);
         return res;
       } catch (err) {
-        toast.error('No se pudo cobrar', { description: err.message });
+        toast.error('No se pudo cobrar', { description: mensajeDeError(err) });
       } finally {
         setCobrando(false);
       }
@@ -115,6 +122,10 @@ export function useCobrar() {
   const cobrarCuotaNro = useCallback(
     async (prestamoId, nro, nombreCliente) => {
       if (cobrando) return;
+      if (estaOffline()) {
+        toast.error('Sin conexión', { description: MENSAJE_SIN_CONEXION });
+        return;
+      }
       setCobrando(true);
       try {
         const res = await cobrarCuota(prestamoId, nro, {
@@ -123,7 +134,7 @@ export function useCobrar() {
         toastCobro(prestamoId, res, nombreCliente);
         return res;
       } catch (err) {
-        toast.error('No se pudo cobrar', { description: err.message });
+        toast.error('No se pudo cobrar', { description: mensajeDeError(err) });
       } finally {
         setCobrando(false);
       }

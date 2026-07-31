@@ -56,9 +56,11 @@ export function DataProvider({ children }) {
       // permission-denied: no mostrar banner, el AuthContext ya maneja acceso
     };
 
-    const clienteFilter = {};
-    if (esCobrador && rutaIdAsignada) clienteFilter.rutaId = rutaIdAsignada;
-    if (esCliente && clienteIdAsignado) clienteFilter.clienteId = clienteIdAsignado;
+    // No es solo UX: las reglas de Firestore rechazan la consulta completa si un
+    // cobrador o un cliente la piden sin acotar por `rutaId` / `clienteId`.
+    const filtroAcceso = {};
+    if (esCobrador && rutaIdAsignada) filtroAcceso.rutaId = rutaIdAsignada;
+    if (esCliente && clienteIdAsignado) filtroAcceso.clienteId = clienteIdAsignado;
 
     const unsubs = [
       subscribeNegocioConfig(
@@ -88,15 +90,19 @@ export function DataProvider({ children }) {
           }
         },
         handleError('clientes'),
-        clienteFilter,
+        filtroAcceso,
       ),
-      subscribePrestamos((d) => {
-        if (!cancelled) {
-          setPrestamos(d);
-          ready.prestamos = true;
-          done();
-        }
-      }, handleError('prestamos')),
+      subscribePrestamos(
+        (d) => {
+          if (!cancelled) {
+            setPrestamos(d);
+            ready.prestamos = true;
+            done();
+          }
+        },
+        handleError('prestamos'),
+        filtroAcceso,
+      ),
       subscribeGastos(
         (d) => {
           if (!cancelled) setGastos(d);
@@ -124,19 +130,33 @@ export function DataProvider({ children }) {
     return rutas.filter((r) => r.id === rutaIdAsignada);
   }, [rutas, rutaIdAsignada, esAdmin]);
 
+  // El borrado es lógico: los archivados siguen en Firestore (recuperables desde
+  // la papelera) pero no participan de ninguna vista ni de las métricas.
+  const vigente = (d) => d.archivado !== true;
+
   const clientesVisibles = useMemo(() => {
-    if (esCliente && clienteIdAsignado) return clientes.filter((c) => c.id === clienteIdAsignado);
-    if (esAdmin || !rutaIdAsignada) return clientes;
-    return clientes.filter((c) => c.rutaId === rutaIdAsignada);
+    const activos = clientes.filter(vigente);
+    if (esCliente && clienteIdAsignado) return activos.filter((c) => c.id === clienteIdAsignado);
+    if (esAdmin || !rutaIdAsignada) return activos;
+    return activos.filter((c) => c.rutaId === rutaIdAsignada);
   }, [clientes, rutaIdAsignada, esAdmin, esCliente, clienteIdAsignado]);
 
   const prestamosVisibles = useMemo(() => {
+    const activos = prestamos.filter(vigente);
     if (esCliente && clienteIdAsignado)
-      return prestamos.filter((p) => p.clienteId === clienteIdAsignado);
-    if (esAdmin || !rutaIdAsignada) return prestamos;
+      return activos.filter((p) => p.clienteId === clienteIdAsignado);
+    if (esAdmin || !rutaIdAsignada) return activos;
     const idsPermitidos = new Set(clientesVisibles.map((c) => c.id));
-    return prestamos.filter((p) => idsPermitidos.has(p.clienteId));
+    return activos.filter((p) => idsPermitidos.has(p.clienteId));
   }, [prestamos, clientesVisibles, rutaIdAsignada, esAdmin, esCliente, clienteIdAsignado]);
+
+  const archivados = useMemo(
+    () => ({
+      clientes: clientes.filter((c) => c.archivado === true),
+      prestamos: prestamos.filter((p) => p.archivado === true),
+    }),
+    [clientes, prestamos],
+  );
 
   const value = useMemo(
     () => ({
@@ -144,6 +164,7 @@ export function DataProvider({ children }) {
       clientes: clientesVisibles,
       prestamos: prestamosVisibles,
       gastos,
+      archivados,
       prestamosAll: prestamos,
       rutasAll: rutas,
       tenantConfig: negocioConfig,
@@ -155,6 +176,7 @@ export function DataProvider({ children }) {
       clientesVisibles,
       prestamosVisibles,
       gastos,
+      archivados,
       prestamos,
       rutas,
       negocioConfig,

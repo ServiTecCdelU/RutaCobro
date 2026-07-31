@@ -26,7 +26,7 @@ import { usePaginacion } from '@/hooks/usePaginacion';
 import Paginacion from '@/components/ui/Paginacion';
 
 export default function Gastos() {
-  const { user, rutas, puedeEditar, eliminarGasto, error } = useApp();
+  const { user, rutas, puedeEditar, eliminarGasto, error, esCobrador, rutaIdAsignada } = useApp();
   const toast = useToast();
 
   // Por defecto: mes actual
@@ -46,10 +46,15 @@ export default function Gastos() {
     setLoadError(null);
     const [desde, hasta] =
       fechaDesde <= fechaHasta ? [fechaDesde, fechaHasta] : [fechaHasta, fechaDesde];
-    return subscribeGastosPorRango(desde, hasta, setGastos, (err) =>
-      setLoadError(err.message ?? 'Error cargando gastos'),
+    return subscribeGastosPorRango(
+      desde,
+      hasta,
+      setGastos,
+      (err) => setLoadError(err.message ?? 'Error cargando gastos'),
+      // Las reglas rechazan la consulta si un cobrador no acota por su ruta.
+      esCobrador && rutaIdAsignada ? { rutaId: rutaIdAsignada } : {},
     );
-  }, [user, fechaDesde, fechaHasta]);
+  }, [user, fechaDesde, fechaHasta, esCobrador, rutaIdAsignada]);
 
   const rutasMap = useMemo(() => new Map(rutas.map((r) => [r.id, r])), [rutas]);
 

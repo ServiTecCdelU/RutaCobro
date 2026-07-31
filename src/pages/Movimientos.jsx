@@ -23,7 +23,8 @@ import { usePaginacion } from '@/hooks/usePaginacion';
 import Paginacion from '@/components/ui/Paginacion';
 
 export default function Movimientos() {
-  const { user, clientes, rutas, prestamos, revertirCuota, error } = useApp();
+  const { user, clientes, rutas, prestamos, revertirCuota, error, esCobrador, rutaIdAsignada } =
+    useApp();
   const toast = useToast();
 
   const [fechaDesde, setFechaDesde] = useState(hoy());
@@ -42,11 +43,16 @@ export default function Movimientos() {
     setLoadError(null);
     const [desde, hasta] =
       fechaDesde <= fechaHasta ? [fechaDesde, fechaHasta] : [fechaHasta, fechaDesde];
-    const unsub = subscribeMovimientosPorRango(desde, hasta, setMovimientos, (err) =>
-      setLoadError(err.message ?? 'Error cargando movimientos'),
+    const unsub = subscribeMovimientosPorRango(
+      desde,
+      hasta,
+      setMovimientos,
+      (err) => setLoadError(err.message ?? 'Error cargando movimientos'),
+      // Las reglas rechazan la consulta si un cobrador no acota por su ruta.
+      esCobrador && rutaIdAsignada ? { rutaId: rutaIdAsignada } : {},
     );
     return unsub;
-  }, [user, fechaDesde, fechaHasta]);
+  }, [user, fechaDesde, fechaHasta, esCobrador, rutaIdAsignada]);
 
   const clientesMap = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
   const rutasMap = useMemo(() => new Map(rutas.map((r) => [r.id, r])), [rutas]);

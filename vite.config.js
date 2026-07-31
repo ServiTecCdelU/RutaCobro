@@ -60,5 +60,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js'],
+    // tests/ requiere el emulador de Firestore: corre aparte con `npm run test:rules`
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**'],
   },
 });
