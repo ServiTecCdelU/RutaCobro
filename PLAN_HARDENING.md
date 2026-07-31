@@ -68,7 +68,7 @@ Modelo de permisos objetivo:
 | #    | Tarea                                                                             | Estado                        |
 | ---- | --------------------------------------------------------------------------------- | ----------------------------- |
 | 1.1  | Configurar emulador de Firestore (`firebase.json` + scripts npm)                  | ✅                            |
-| 1.2  | Suite de tests de reglas con `@firebase/rules-unit-testing` (46 casos)            | 🟡 **escrita, sin ejecutar**  |
+| 1.2  | Suite de tests de reglas con `@firebase/rules-unit-testing` (47 casos)            | ✅ 47/47 en verde             |
 | 1.3  | Desnormalizar `rutaId` en `prestamos` (alta, edición, cambio de ruta del cliente) | ✅                            |
 | 1.4  | Desnormalizar `rutaId` en `movimientos` (cobro, pago parcial, punitorio)          | ✅                            |
 | 1.5  | Desnormalizar `rutaId` en `notas`                                                 | ✅                            |
@@ -76,23 +76,36 @@ Modelo de permisos objetivo:
 | 1.7  | Adaptar queries del frontend (`services.js`, `DataContext`) al nuevo filtro       | ✅                            |
 | 1.8  | Índices compuestos nuevos (`firestore.indexes.json`)                              | ✅                            |
 | 1.9  | Script de migración de datos existentes (`scripts/migrar-rutaid.mjs`)             | ✅                            |
-| 1.10 | Tests de transacciones de dinero contra el emulador (18 casos)                    | 🟡 **escrita, sin ejecutar**  |
+| 1.10 | Tests de transacciones de dinero contra el emulador (18 casos)                    | ✅ 18/18 en verde             |
 | 1.11 | Correr migración en producción y deployar reglas                                  | ⬜ **requiere acción manual** |
 
-### ⚠️ Bloqueante: falta Java (tareas 1.2 y 1.10)
+### Requisito para correr las suites del emulador
 
-El emulador de Firestore corre sobre la JVM y **en esta máquina no hay Java instalado**
-(`java -version` → no encontrado), así que las dos suites del emulador quedaron escritas y
-verificadas por lint, pero **nunca se ejecutaron**. No hay que darlas por buenas hasta correrlas.
+El emulador de Firestore corre sobre la JVM. Instalado en esta máquina:
+**Temurin JDK 21** (`winget install EclipseAdoptium.Temurin.21.JDK --source winget`).
+
+> Nota: `Microsoft.OpenJDK.21` falla en este equipo — la descarga se trunca en 188 KB y el
+> hash no valida. **No usar `--ignore-security-hash` para saltearlo**: significaría instalar
+> un binario que no es el que el publisher firmó. Temurin baja de otro CDN y funciona.
 
 ```bash
-winget install Microsoft.OpenJDK.21     # o cualquier JDK 11+
-npm run test:rules                      # levanta el emulador y corre tests/
+npm run test:rules   # levanta el emulador y corre tests/
 ```
 
-Si algún caso falla, lo más probable es que sobre o falte permiso en `firestore.rules` —
-ese es exactamente el trabajo que la suite existe para detectar. **No deployar las reglas
-hasta que `npm run test:rules` pase en verde.**
+### Lo que la suite encontró (2026-07-31)
+
+**`invitaciones` — borrado imposible tras aceptar la invitación.** La regla era
+`esAdmin() || !tieneMembresia()`, pero al aceptar una invitación el usuario primero crea su
+doc en `/usuarios` y recién después borra el token: para ese momento ya tiene membresía y la
+condición no se cumple.
+
+En producción probablemente no habría explotado, porque `aceptarInvitacion` hace las dos
+escrituras en una `runTransaction` y las reglas evalúan cada write contra el estado previo a
+la transacción. Pero era una dependencia frágil de un detalle sutil del motor: cualquier
+refactor que separara las operaciones habría dejado tokens huérfanos y reutilizables.
+
+Corregido agregando la condición explícita `miDoc().inviteToken == token`, que cubre los dos
+momentos del alta y además acota el permiso a _la propia_ invitación del usuario.
 
 ### Riesgos y mitigación
 
@@ -168,7 +181,7 @@ su información.
 **El orden importa. Invertirlo deja la app rota o los datos inaccesibles.**
 
 ```bash
-# 0 · Verificar que las suites del emulador pasan (requiere Java, ver arriba)
+# 0 · Verificar que las suites del emulador siguen pasando
 npm run test:rules
 
 # 1 · Backup ANTES de tocar nada: entrar a /configuracion como admin
@@ -226,8 +239,8 @@ El campo `rutaId` agregado por la migración es aditivo y no rompe la versión v
 - Índices compuestos nuevos: `prestamos(rutaId, fechaInicio)` y `movimientos(rutaId, fecha)`.
 - `scripts/migrar-rutaid.mjs`: idempotente, con `--dry-run` y reporte de clientes sin ruta
   y documentos huérfanos.
-- 64 casos de test escritos contra el emulador (46 de reglas + 18 de transacciones),
-  **pendientes de ejecución por falta de Java** — ver bloqueante arriba.
+- 65 casos de test contra el emulador (47 de reglas + 18 de transacciones), **todos en
+  verde**. Encontraron un bug real en la regla de `invitaciones` — detalle arriba.
 
 **Fase 2 — Offline (etapa A completa)**
 
@@ -259,7 +272,7 @@ El campo `rutaId` agregado por la migración es aditivo y no rompe la versión v
 | `npm test`           | ✅ 176 tests / 23 archivos (antes: 154 / 20) |
 | `npx eslint src`     | ✅ sin errores ni warnings                   |
 | `npm run build`      | ✅ compila                                   |
-| `npm run test:rules` | ⛔ no ejecutado — falta Java                 |
+| `npm run test:rules` | ✅ 65 tests / 2 archivos (emulador)          |
 
 ---
 
@@ -267,12 +280,10 @@ El campo `rutaId` agregado por la migración es aditivo y no rompe la versión v
 
 **Próximo paso, en orden:**
 
-1. **Instalar Java y correr `npm run test:rules`.** Es lo primero: hay 64 casos escritos que
-   nunca corrieron. Hasta que pasen, las reglas nuevas son una hipótesis, no una garantía.
-2. Arreglar lo que esa suite encuentre en `firestore.rules`.
-3. Ejecutar el checklist de deploy (tarea 1.11).
-4. Recién después, seguir con lo que quedó en ⬜: la cola offline (2.6-2.8), la papelera
-   (3.5) y el backup automático (3.6).
+1. **Ejecutar el checklist de deploy (tarea 1.11).** Es lo único que falta de la Fase 1: el
+   código y las reglas están validados, pero producción sigue corriendo las reglas viejas.
+2. Después, seguir con lo que quedó en ⬜: la cola offline (2.6-2.8), la papelera (3.5) y
+   el backup automático (3.6).
 
 **Comandos:**
 

@@ -107,12 +107,19 @@ service cloud.firestore {
 
     // ── Invitaciones ─────────────────────────────────────────────────────────
     // get por token (inadivinable) para aceptarla; listar solo admin.
-    // delete: el admin, o un usuario todavía SIN membresía que la está consumiendo.
+    // delete: el admin, o el usuario que la está consumiendo. Se contemplan los
+    // dos momentos del alta porque el orden de evaluación no es garantizable:
+    //   · antes de crear su membresía  → todavía no tiene doc en /usuarios;
+    //   · después de crearla           → su doc referencia este mismo token.
+    // Sin la segunda condición, aceptar una invitación fuera de una transacción
+    // deja el token huérfano y reutilizable.
     match /invitaciones/{token} {
       allow get: if isAuth();
       allow list: if esAdmin();
       allow create, update: if esAdmin();
-      allow delete: if esAdmin() || (isAuth() && !tieneMembresia());
+      allow delete: if esAdmin()
+        || (isAuth() && !tieneMembresia())
+        || (tieneMembresia() && miDoc().inviteToken == token);
     }
 
     // ── Rutas ────────────────────────────────────────────────────────────────

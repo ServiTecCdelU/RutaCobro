@@ -9,3 +9,7 @@ comprobante-ejemplo.pdf
 comprobante-preview.png
 verif.png
 gen-comprobante-preview.*
+
+# log del emulador de Firestore
+firestore-debug.log
+ui-debug.log
