@@ -169,7 +169,7 @@ export const generarContrato = async ({ cliente, prestamo, ruta, punitorioConfig
     `PRIMERA — EL DEUDOR declara recibir en este acto, en efectivo y a su entera conformidad, la suma de ` +
       `${formatMoney(prestamo?.monto)} (pesos ${montoEnLetras(prestamo?.monto)}).`,
     `SEGUNDA — EL DEUDOR se obliga a devolver la suma total de ${formatMoney(totalDevolver)} ` +
-      `(pesos ${montoEnLetras(totalDevolver)}), que incluye el interés pactado del ${prestamo?.interes ?? 0}%, ` +
+      `(pesos ${montoEnLetras(totalDevolver)}), ` +
       `en ${cuotas.length} cuotas ${frecuenciaPlural(prestamo?.frecuenciaDias)} de ${formatMoney(valorCuota)} cada una, ` +
       `conforme al cronograma de vencimientos detallado al pie, siendo el primer vencimiento el día ` +
       `${cuotas[0]?.vencimiento ? formatFecha(cuotas[0].vencimiento) : '____________'}.`,

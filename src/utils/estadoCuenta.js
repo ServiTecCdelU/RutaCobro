@@ -119,18 +119,23 @@ const dibujarEncabezado = (doc, { cliente, prestamo, ruta }) => {
         ? 'En mora'
         : 'Activo';
   campo(doc, COL2, 47, 'Capital', formatMoney(prestamo?.monto));
-  campo(doc, COL2 + 45, 47, 'Interés', (prestamo?.interes ?? 0) + '%');
-  campo(doc, COL2, 57, 'Total a devolver', formatMoney(totalDevolver));
+  campo(doc, COL2 + 45, 47, 'Total a devolver', formatMoney(totalDevolver));
   campo(
     doc,
-    COL2 + 45,
+    COL2,
     57,
     'Plan',
     `${prestamo?.cuotas ?? '—'} ${frecuenciaPlural(prestamo?.frecuenciaDias)}`,
     9,
   );
-  campo(doc, COL2, 67, 'Inicio', prestamo?.fechaInicio ? formatFecha(prestamo.fechaInicio) : '—');
-  campo(doc, COL2 + 45, 67, 'Estado', estadoTxt);
+  campo(
+    doc,
+    COL2 + 45,
+    57,
+    'Inicio',
+    prestamo?.fechaInicio ? formatFecha(prestamo.fechaInicio) : '—',
+  );
+  campo(doc, COL2, 67, 'Estado', estadoTxt);
 };
 
 const dibujarResumen = (doc, prestamo, y) => {
