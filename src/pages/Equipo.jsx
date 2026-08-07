@@ -14,6 +14,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney } from '@/utils/formatters';
+import { capitalPendiente } from '@/utils/calculos';
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -83,10 +84,10 @@ export default function Equipo() {
 
   const capitalTotal = tenantConfig?.capitalTotal ?? 0;
 
-  // Capital en calle TOTAL (todos los préstamos activos)
+  // Capital en calle TOTAL (todos los préstamos vigentes, ya descontando lo cobrado)
   const capitalEnCalleTotal = (prestamosAll ?? [])
-    .filter((p) => p.estado === 'activo')
-    .reduce((sum, p) => sum + (p.monto ?? 0), 0);
+    .filter((p) => p.estado === 'activo' || p.estado === 'mora')
+    .reduce((sum, p) => sum + capitalPendiente(p), 0);
 
   // Monto cobrado de una cuota, tolerando datos viejos sin `pagado`.
   const pagadoDe = (c) => c.pagado ?? (c.pagada ? c.monto : 0);
@@ -107,8 +108,12 @@ export default function Equipo() {
   const getCapitalEnCalle = (rutaId) => {
     if (!rutaId || !prestamosAll) return 0;
     return prestamosAll
-      .filter((p) => p.estado === 'activo' && clienteRutaMap.get(p.clienteId) === rutaId)
-      .reduce((sum, p) => sum + (p.monto ?? 0), 0);
+      .filter(
+        (p) =>
+          (p.estado === 'activo' || p.estado === 'mora') &&
+          clienteRutaMap.get(p.clienteId) === rutaId,
+      )
+      .reduce((sum, p) => sum + capitalPendiente(p), 0);
   };
 
   // Caja real por ruta: asignado + cobrado − colocado histórico − gastos de la ruta.
@@ -136,8 +141,10 @@ export default function Equipo() {
   // Cuánto queda sin asignar a cobradores
   const sinAsignar = capitalTotal - totalAsignado;
 
-  // Cantidad de préstamos activos
-  const prestamosActivos = (prestamosAll ?? []).filter((p) => p.estado === 'activo').length;
+  // Cantidad de préstamos vigentes (activos o en mora)
+  const prestamosActivos = (prestamosAll ?? []).filter(
+    (p) => p.estado === 'activo' || p.estado === 'mora',
+  ).length;
 
   // ── Handlers ──
 
