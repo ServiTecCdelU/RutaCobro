@@ -45,6 +45,18 @@ export const generarCuotas = (monto, interes, cantCuotas, fechaInicio, frecuenci
 export const proximaCuotaPendiente = (prestamo) =>
   prestamo?.cuotasDetalle?.find((c) => !c.pagada) ?? null;
 
+// Capital todavía no devuelto de un préstamo: reparte lo cobrado proporcionalmente
+// entre capital e interés (mismo criterio que capitalRecuperado en useMetricas).
+export const capitalPendiente = (prestamo) => {
+  const capital = prestamo.monto ?? 0;
+  const cuotas = prestamo.cuotasDetalle ?? [];
+  const totalPrestamo = cuotas.reduce((s, c) => s + c.monto, 0);
+  const ratioCapital = totalPrestamo > 0 ? capital / totalPrestamo : 0;
+  const cobrado = cuotas.reduce((s, c) => s + (c.pagado ?? (c.pagada ? c.monto : 0)), 0);
+  const capitalDevuelto = cobrado * ratioCapital;
+  return Math.max(0, capital - capitalDevuelto);
+};
+
 // Frecuencias de pago conocidas (en días). Los préstamos viejos sin `frecuenciaDias`
 // se tratan como semanales (7), que era el comportamiento histórico.
 const FRECUENCIAS = {

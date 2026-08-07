@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { diasDeAtraso, hoy, toFechaStr, sumarDias } from '@/utils/calculos';
+import { diasDeAtraso, hoy, toFechaStr, sumarDias, capitalPendiente } from '@/utils/calculos';
 
 const esActivo = (p) => p.estado === 'activo' || p.estado === 'mora';
 
@@ -84,7 +84,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
       gananciaRealizada += cobradoPrestamo * (1 - ratioCapital);
 
       // "En calle" = capital todavía no devuelto de los préstamos vigentes
-      if (esActivo(p)) capitalEnCalle += Math.max(0, capital - capitalDevuelto);
+      if (esActivo(p)) capitalEnCalle += capitalPendiente(p);
     }
 
     capitalRecuperado = Math.round(capitalRecuperado);

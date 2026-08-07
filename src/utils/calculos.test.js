@@ -8,6 +8,7 @@ import {
   proximaCuotaPendiente,
   frecuenciaNombre,
   frecuenciaPlural,
+  capitalPendiente,
 } from './calculos';
 
 describe('toFechaStr', () => {
@@ -25,6 +26,48 @@ describe('toFechaStr', () => {
 describe('hoy', () => {
   it('devuelve una fecha en formato YYYY-MM-DD', () => {
     expect(hoy()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('capitalPendiente', () => {
+  it('baja al cobrar una cuota (capital 100, total 120, cuotas de 60)', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [
+        { nro: 1, monto: 60, pagada: false, pagado: 0 },
+        { nro: 2, monto: 60, pagada: false, pagado: 0 },
+      ],
+    };
+    expect(capitalPendiente(prestamo)).toBe(100);
+
+    // Se cobra la cuota 1: ratio capital = 100/120 → capital devuelto = 50.
+    const cobrado = {
+      ...prestamo,
+      cuotasDetalle: [
+        { nro: 1, monto: 60, pagada: true, pagado: 60 },
+        { nro: 2, monto: 60, pagada: false, pagado: 0 },
+      ],
+    };
+    expect(capitalPendiente(cobrado)).toBe(50);
+  });
+
+  it('sin interés, baja exactamente el monto cobrado', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [
+        { nro: 1, monto: 50, pagada: true, pagado: 50 },
+        { nro: 2, monto: 50, pagada: false, pagado: 0 },
+      ],
+    };
+    expect(capitalPendiente(prestamo)).toBe(50);
+  });
+
+  it('nunca da negativo aunque se cobre de más', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [{ nro: 1, monto: 100, pagada: true, pagado: 100 }],
+    };
+    expect(capitalPendiente(prestamo)).toBe(0);
   });
 });
 

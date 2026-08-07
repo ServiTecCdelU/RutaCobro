@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { formatMoney } from '@/utils/formatters';
-import { generarCuotas, hoy } from '@/utils/calculos';
+import { generarCuotas, hoy, capitalPendiente } from '@/utils/calculos';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { useModal } from '@/hooks/useModal';
@@ -39,11 +39,14 @@ export default function ModalNuevoPrestamo({ onClose, clienteIdInicial }) {
   const valorCuota = Math.round(totalConInteres / cuotas);
   const ganancia = totalConInteres - monto;
 
-  // Monto disponible del cobrador
+  // Monto disponible del cobrador: capital de préstamos vigentes que todavía
+  // no volvió, usando el mismo reparto proporcional capital/interés que useMetricas.
   const montoAsignado = userDoc?.montoAsignado ?? null;
   const capitalEnCalle =
     esCobrador && rutaIdAsignada
-      ? prestamos.filter((p) => p.estado === 'activo').reduce((sum, p) => sum + (p.monto ?? 0), 0)
+      ? prestamos
+          .filter((p) => p.estado === 'activo' || p.estado === 'mora')
+          .reduce((sum, p) => sum + capitalPendiente(p), 0)
       : 0;
   const montoDisponible = montoAsignado != null ? montoAsignado - capitalEnCalle : null;
 

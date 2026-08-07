@@ -36,6 +36,29 @@ describe('useMetricas', () => {
     expect(result.current.colocadoHistorico).toBe(200);
   });
 
+  it('capital en calle baja al cobrar una cuota de un préstamo activo', () => {
+    const clientes = [cliente('c1', 'r1')];
+    // Capital 100, total 120. Antes de cobrar, nada devuelto → en calle = 100.
+    const antesDeCobrar = [
+      prestamoBase('p1', 'c1', 'activo', [
+        { nro: 1, monto: 60, pagada: false, pagado: 0, vencimiento: sumarDias(hoy(), 7) },
+        { nro: 2, monto: 60, pagada: false, pagado: 0, vencimiento: sumarDias(hoy(), 14) },
+      ]),
+    ];
+    const { result: antes } = renderHook(() => useMetricas(antesDeCobrar, clientes, [], 'all'));
+    expect(antes.current.colocado).toBe(100);
+
+    // Se cobra la cuota 1 (60): ratio capital = 100/120 → capital devuelto = 50.
+    const despuesDeCobrar = [
+      prestamoBase('p1', 'c1', 'activo', [
+        { nro: 1, monto: 60, pagada: true, pagado: 60, vencimiento: sumarDias(hoy(), 7) },
+        { nro: 2, monto: 60, pagada: false, pagado: 0, vencimiento: sumarDias(hoy(), 14) },
+      ]),
+    ];
+    const { result: despues } = renderHook(() => useMetricas(despuesDeCobrar, clientes, [], 'all'));
+    expect(despues.current.colocado).toBe(50);
+  });
+
   it('separa ganancia realizada de proyectada y calcula capital recuperado', () => {
     const clientes = [cliente('c1', 'r1')];
     // Capital 100, total 120 → 20 de interés. Cobrada 1 cuota de 60.
