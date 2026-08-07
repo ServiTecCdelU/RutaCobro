@@ -9,6 +9,7 @@ import {
   frecuenciaNombre,
   frecuenciaPlural,
   capitalPendiente,
+  saldoPendiente,
 } from './calculos';
 
 describe('toFechaStr', () => {
@@ -68,6 +69,38 @@ describe('capitalPendiente', () => {
       cuotasDetalle: [{ nro: 1, monto: 100, pagada: true, pagado: 100 }],
     };
     expect(capitalPendiente(prestamo)).toBe(0);
+  });
+});
+
+describe('saldoPendiente', () => {
+  it('incluye capital + interés (a diferencia de capitalPendiente)', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [
+        { nro: 1, monto: 60, pagada: false, pagado: 0 },
+        { nro: 2, monto: 60, pagada: false, pagado: 0 },
+      ],
+    };
+    expect(saldoPendiente(prestamo)).toBe(120);
+  });
+
+  it('baja exactamente lo cobrado, sin prorratear interés', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [
+        { nro: 1, monto: 60, pagada: true, pagado: 60 },
+        { nro: 2, monto: 60, pagada: false, pagado: 0 },
+      ],
+    };
+    expect(saldoPendiente(prestamo)).toBe(60);
+  });
+
+  it('devuelve 0 con todas las cuotas pagadas', () => {
+    const prestamo = {
+      monto: 100,
+      cuotasDetalle: [{ nro: 1, monto: 120, pagada: true, pagado: 120 }],
+    };
+    expect(saldoPendiente(prestamo)).toBe(0);
   });
 });
 

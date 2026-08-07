@@ -14,7 +14,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney } from '@/utils/formatters';
-import { capitalPendiente } from '@/utils/calculos';
+import { saldoPendiente } from '@/utils/calculos';
 import EmptyState from '@/components/ui/EmptyState';
 import ErrorBanner from '@/components/ui/ErrorBanner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -84,10 +84,10 @@ export default function Equipo() {
 
   const capitalTotal = tenantConfig?.capitalTotal ?? 0;
 
-  // Capital en calle TOTAL (todos los préstamos vigentes, ya descontando lo cobrado)
+  // Capital en calle TOTAL: saldo pendiente (capital + interés) de préstamos vigentes
   const capitalEnCalleTotal = (prestamosAll ?? [])
     .filter((p) => p.estado === 'activo' || p.estado === 'mora')
-    .reduce((sum, p) => sum + capitalPendiente(p), 0);
+    .reduce((sum, p) => sum + saldoPendiente(p), 0);
 
   // Monto cobrado de una cuota, tolerando datos viejos sin `pagado`.
   const pagadoDe = (c) => c.pagado ?? (c.pagada ? c.monto : 0);
@@ -113,7 +113,7 @@ export default function Equipo() {
           (p.estado === 'activo' || p.estado === 'mora') &&
           clienteRutaMap.get(p.clienteId) === rutaId,
       )
-      .reduce((sum, p) => sum + capitalPendiente(p), 0);
+      .reduce((sum, p) => sum + saldoPendiente(p), 0);
   };
 
   // Caja real por ruta: asignado + cobrado − colocado histórico − gastos de la ruta.

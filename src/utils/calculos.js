@@ -57,6 +57,15 @@ export const capitalPendiente = (prestamo) => {
   return Math.max(0, capital - capitalDevuelto);
 };
 
+// Saldo total pendiente de un préstamo, capital + interés (lo que falta cobrar
+// de las cuotas no saldadas). A diferencia de capitalPendiente, no separa el
+// interés: es el monto real que todavía hay "en la calle".
+export const saldoPendiente = (prestamo) =>
+  (prestamo?.cuotasDetalle ?? []).reduce(
+    (s, c) => s + Math.max(0, (c.monto ?? 0) - (c.pagado ?? (c.pagada ? c.monto : 0))),
+    0,
+  );
+
 // Frecuencias de pago conocidas (en días). Los préstamos viejos sin `frecuenciaDias`
 // se tratan como semanales (7), que era el comportamiento histórico.
 const FRECUENCIAS = {

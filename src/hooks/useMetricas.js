@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { diasDeAtraso, hoy, toFechaStr, sumarDias, capitalPendiente } from '@/utils/calculos';
+import { diasDeAtraso, hoy, toFechaStr, sumarDias } from '@/utils/calculos';
 
 const esActivo = (p) => p.estado === 'activo' || p.estado === 'mora';
 
@@ -19,7 +19,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     let cobradoTotal = 0;
     let porCobrar = 0;
     let colocadoHistorico = 0; // capital de TODOS los préstamos (cobrados o no)
-    let capitalEnCalle = 0; // capital NO recuperado de préstamos activos/mora ("en la calle")
+    let capitalEnCalle = 0; // saldo total (capital + interés) pendiente de préstamos activos/mora
     let cuotasTotales = 0;
     let cuotasMoraCant = 0;
     let montoMora = 0;
@@ -59,6 +59,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
         const pendiente = c.monto - pagado;
         if (pendiente > 0) {
           porCobrar += pendiente;
+          if (esActivo(p)) capitalEnCalle += pendiente;
 
           const atraso = diasDeAtraso(c);
           if (atraso > 0) {
@@ -82,9 +83,6 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
       const capitalDevuelto = cobradoPrestamo * ratioCapital;
       capitalRecuperado += capitalDevuelto;
       gananciaRealizada += cobradoPrestamo * (1 - ratioCapital);
-
-      // "En calle" = capital todavía no devuelto de los préstamos vigentes
-      if (esActivo(p)) capitalEnCalle += capitalPendiente(p);
     }
 
     capitalRecuperado = Math.round(capitalRecuperado);
@@ -151,7 +149,7 @@ export function useMetricas(prestamos, clientes, rutas, rutaActiva) {
     return {
       cobradoTotal,
       porCobrar,
-      colocado: capitalEnCalle, // "en calle" = capital pendiente de activos/mora
+      colocado: capitalEnCalle, // "en calle" = saldo pendiente (capital+interés) de activos/mora
       colocadoHistorico,
       capitalRecuperado,
       montoMora,
